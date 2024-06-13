@@ -14,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.qp.quantum_share.configuration.ConfigurationClass;
 import com.qp.quantum_share.dao.QuantumShareUserDao;
 import com.qp.quantum_share.dto.QuantumShareUser;
+import com.qp.quantum_share.dto.SubscriptionDetails;
 import com.qp.quantum_share.helper.GenerateId;
 import com.qp.quantum_share.helper.JwtToken;
 import com.qp.quantum_share.helper.SecurePassword;
@@ -44,6 +45,9 @@ public class QuantumShareUserService {
 
 	@Autowired
 	ConfigurationClass configure;
+	
+	@Autowired
+	SubscriptionDetails subscriptionDetails;
 
 	@Autowired
 	UploadProfileToServer uploadProfileToServer;
@@ -163,7 +167,6 @@ public class QuantumShareUserService {
 		map.put("email", user.getEmail());
 		map.put("mobile", user.getPhoneNo());
 		map.put("profile_pic", user.getProfilePic());
-//		map.put(userId, map)
 
 		structure.setCode(HttpStatus.OK.value());
 		structure.setData(map);
@@ -198,17 +201,4 @@ public class QuantumShareUserService {
 		structure.setStatus("success");
 		return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
 	}
-
-//	public ResponseEntity<ResponseStructure<String>> logout(String userId) {
-//		QuantumShareUser user = userDao.fetchUser(userId);
-//		if (user == null) {
-//			structure.setCode(HttpStatus.NOT_FOUND.value());
-//			structure.setMessage("user doesn't exists, please login");
-//			structure.setStatus("error");
-//			structure.setData(null);
-//			structure.setPlatform(null);
-//			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
-//		}
-//	}
-
 }

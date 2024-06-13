@@ -12,10 +12,9 @@ public class QuantumShareApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(QuantumShareApplication.class, args);
 	}
-
+	
 	@Bean
 	public WebMvcConfigurer configurer() {
-
 		return new WebMvcConfigurer() {
 			@Override
 			public void addCorsMappings(CorsRegistry reg) {
@@ -23,4 +22,5 @@ public class QuantumShareApplication {
 			}
 		};
 	}
+
 }

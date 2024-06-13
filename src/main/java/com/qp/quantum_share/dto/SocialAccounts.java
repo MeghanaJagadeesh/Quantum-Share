@@ -18,11 +18,16 @@ public class SocialAccounts {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private int socialAccountId;
+	
 	@OneToOne(cascade = CascadeType.ALL)
-//	@OneToOne
 	private FaceBookUser facebookUser;
 
 	@OneToOne(cascade = CascadeType.ALL)
-//	@OneToOne
 	private InstagramUser instagramUser;
+	
+	@OneToOne(cascade = CascadeType.ALL)
+	private TelegramUser telegramUser;
+	
+	@OneToOne(cascade = CascadeType.ALL)
+	private TwitterUser twitterUser;
 }

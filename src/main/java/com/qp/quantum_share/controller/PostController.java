@@ -140,5 +140,55 @@ public class PostController {
 			throw new CommonException(e.getMessage());
 		}
 	}
+	
+	@PostMapping("/post/file/telegram")
+	public ResponseEntity<ResponseWrapper> postToTelegram(MultipartFile mediaFile,
+			@ModelAttribute MediaPost mediaPost) {
+		System.out.println("Controller");
+		String token = request.getHeader("Authorization");
+		if (token == null || !token.startsWith("Bearer ")) {
+			structure.setCode(115);
+			structure.setMessage("Missing or Invalid Authorization Token");
+			structure.setStatus("error");
+			structure.setPlatform("telegram");
+			structure.setData(null);
+			return new ResponseEntity<ResponseWrapper>(configuration.getResponseWrapper(structure),
+					HttpStatus.UNAUTHORIZED);
+		}
+		String jwtToken = token.substring(7);
+		String userId = jwtUtilConfig.extractUserId(jwtToken);
+		QuantumShareUser user = userDao.fetchUser(userId);
+		if (user == null) {
+			structure.setCode(HttpStatus.NOT_FOUND.value());
+			structure.setMessage("User doesn't Exists, Please Signup");
+			structure.setStatus("error");
+			structure.setData(null);
+			structure.setPlatform("telegram");
+			return new ResponseEntity<ResponseWrapper>(configuration.getResponseWrapper(structure),
+					HttpStatus.NOT_FOUND);
+		}
+		try {
+			if (mediaPost.getMediaPlatform() == null || mediaPost.getMediaPlatform() == "") {
+				structure.setCode(HttpStatus.BAD_REQUEST.value());
+				structure.setStatus("error");
+				structure.setMessage("Select Social Media Platforms");
+				structure.setData(null);
+				structure.setPlatform("telegram");
+				return new ResponseEntity<ResponseWrapper>(configuration.getResponseWrapper(structure),
+						HttpStatus.BAD_REQUEST);
+			} else {
+				System.out.println("Going to PostService");
+				return postServices.postOnTelegram(mediaPost, mediaFile, user.getSocialAccounts());
+			}
+		} catch (Exception e) {
+			structure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			structure.setStatus("error");
+			structure.setMessage(e.getMessage());
+			structure.setData(null);
+			structure.setPlatform("telegram");
+			return new ResponseEntity<ResponseWrapper>(configuration.getResponseWrapper(structure),
+					HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
 
 }

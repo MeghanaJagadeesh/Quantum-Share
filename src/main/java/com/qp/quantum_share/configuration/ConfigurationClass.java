@@ -10,10 +10,13 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.qp.quantum_share.dto.FacebookPageDetails;
+import com.qp.quantum_share.dto.PaymentDetails;
 import com.qp.quantum_share.response.ErrorResponse;
 import com.qp.quantum_share.response.ResponseStructure;
 import com.qp.quantum_share.response.ResponseWrapper;
@@ -34,6 +37,12 @@ public class ConfigurationClass {
 	public HttpEntity<String> getHttpEntity(String jsonString, HttpHeaders headers) {
 		return new HttpEntity<>(jsonString, headers);
 	}
+	
+	@Bean
+	@Lazy
+	public HttpEntity<MultiValueMap<String, Object>> getHttpEntityWithMap(MultiValueMap<String, Object> multiValueMap, HttpHeaders headers) {
+		return new HttpEntity<>(multiValueMap, headers);
+	}
 
 	@Bean
 	@Lazy
@@ -45,6 +54,12 @@ public class ConfigurationClass {
 	public Map<String, Object> getMap() {
 		return new HashMap<String, Object>();
 	}
+	
+	@Bean
+	public MultiValueMap<String, Object> getMultiValueMap() {
+		return new LinkedMultiValueMap<String, Object>();
+	}
+
 
 	@Bean
 	public RestTemplate getRestTemplate() {
@@ -89,6 +104,12 @@ public class ConfigurationClass {
 	public List<Object> getList() {
 		return new ArrayList<Object>();
 	}
+
+	@Bean
+	@Lazy
+	public List<PaymentDetails> getPaymentList() {
+		return new ArrayList<PaymentDetails>();
+	}
 //	@Bean
 //	public JsonObject getJsonObject(String json)
 //	{
@@ -110,4 +131,10 @@ public class ConfigurationClass {
 		return new ErrorResponse();
 	}
 
+	
+	@Bean
+	@Lazy
+	public PaymentDetails paymentDetails(){
+		return new PaymentDetails();
+	}
 }

@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -30,15 +29,6 @@ import com.qp.quantum_share.response.ResponseStructure;
 
 @Service
 public class FacebookAccessTokenService {
-
-	@Value("${spring.social.facebook.appId}")
-	private String appId;
-
-	@Value("${spring.social.facebook.appSecret}")
-	private String appSecret;
-
-	@Value("${spring.social.redirect_uri}")
-	private String redirect_uri;
 
 	@Autowired
 	ObjectMapper objectMapper;
@@ -207,10 +197,4 @@ public class FacebookAccessTokenService {
 			return null;
 	}
 
-	public String getAuthorizationUrl() {
-		String scope = "pages_manage_posts,pages_show_list,publish_video";
-		String loginUrl = "https://www.facebook.com/v19.0/dialog/oauth?client_id=" + appId + "&redirect_uri="
-				+ redirect_uri + "&scope=" + scope + "&response_type=code";
-		return loginUrl;
-	}
 }

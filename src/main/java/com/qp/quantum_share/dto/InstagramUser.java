@@ -20,7 +20,7 @@ public class InstagramUser {
 
 	@Column(length = 4000)
 	private String pictureUrl;
-	
+
 	@Column(length = 2000)
 	private String instUserAccessToken;
 }

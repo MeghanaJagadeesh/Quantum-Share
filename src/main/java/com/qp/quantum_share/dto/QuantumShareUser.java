@@ -2,10 +2,7 @@ package com.qp.quantum_share.dto;
 
 import java.time.LocalDate;
 
-import org.springframework.stereotype.Component;
-
 import jakarta.persistence.CascadeType;
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToOne;
@@ -13,11 +10,10 @@ import lombok.Data;
 
 @Data
 @Entity
-@Component
 public class QuantumShareUser {
-
+	
 	@Id
-	@Column(unique = true)
+//	@Column(unique = true)
 	private String userId;
 	private String firstName;
 	private String lastName;
@@ -31,6 +27,9 @@ public class QuantumShareUser {
 	private String profilePic;
 	
 	@OneToOne(cascade=CascadeType.ALL)
-//	@OneToOne
 	private SocialAccounts socialAccounts;
+	
+	@OneToOne(cascade = CascadeType.ALL)
+	private SubscriptionDetails subscriptionDetails;
+	
 }

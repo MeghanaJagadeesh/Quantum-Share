@@ -104,7 +104,7 @@ public class FacebookPostService {
 					if (finalResponse.isSuccess()) {
 						SuccessResponse succesresponse = config.getSuccessResponse();
 						succesresponse.setCode(HttpStatus.OK.value());
-						succesresponse.setMessage("Posted On " + pageName + "FaceBook Page");
+						succesresponse.setMessage("Posted On " + pageName + " FaceBook Page");
 						succesresponse.setStatus("success");
 						succesresponse.setPlatform("facebook");
 						succesresponse.setData(finalResponse);
@@ -128,7 +128,7 @@ public class FacebookPostService {
 					if (response.getId() != null) {
 						SuccessResponse succesresponse = config.getSuccessResponse();
 						succesresponse.setCode(HttpStatus.OK.value());
-						succesresponse.setMessage("Posted On " + page.getPageName() + "FaceBook Page");
+						succesresponse.setMessage("Posted On " + page.getPageName() + " FaceBook Page");
 						succesresponse.setStatus("success");
 						succesresponse.setData(response);
 						succesresponse.setPlatform("facebook");

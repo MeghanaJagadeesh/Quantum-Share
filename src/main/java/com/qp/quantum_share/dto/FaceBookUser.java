@@ -1,3 +1,4 @@
+
 package com.qp.quantum_share.dto;
 
 import java.util.List;
@@ -12,8 +13,8 @@ import jakarta.persistence.OneToMany;
 import lombok.Data;
 
 @Data
-@Component
 @Entity
+@Component
 public class FaceBookUser {
 
 	@Id
@@ -33,7 +34,6 @@ public class FaceBookUser {
 	private String userAccessToken;
 
 	@OneToMany(cascade=CascadeType.ALL)
-//	@OneToMany
 	private List<FacebookPageDetails> pageDetails;
 
 }

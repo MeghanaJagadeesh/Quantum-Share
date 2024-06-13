@@ -18,22 +18,22 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestController
 @RequestMapping("/quantum-share")
 public class SocialMediaLogoutController {
-	
+
 	@Autowired
 	HttpServletRequest request;
-	
+
 	@Autowired
 	JwtUtilConfig jwtUtilConfig;
-	
+
 	@Autowired
 	ResponseStructure<String> structure;
-	
+
 	@Autowired
 	QuantumShareUserDao userDao;
-	
+
 	@Autowired
 	SocialMediaLogoutService logoutService;
-	
+
 	@GetMapping("/disconnect/facebook")
 	public ResponseEntity<ResponseStructure<String>> disconnectFacebook() {
 		String token = request.getHeader("Authorization");
@@ -57,7 +57,7 @@ public class SocialMediaLogoutController {
 		}
 		return logoutService.disconnectFacebook(user);
 	}
-	
+
 	@GetMapping("/disconnect/instagram")
 	public ResponseEntity<ResponseStructure<String>> disconnectInstagram() {
 		String token = request.getHeader("Authorization");
@@ -80,6 +80,31 @@ public class SocialMediaLogoutController {
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
 		}
 		return logoutService.disconnectInstagram(user);
+	}
+
+	// Telegram
+	@GetMapping("/disconnect/telegram")
+	public ResponseEntity<ResponseStructure<String>> disconnectTelegram() {
+		String token = request.getHeader("Authorization");
+		if (token == null || !token.startsWith("Bearer ")) {
+			structure.setCode(115);
+			structure.setMessage("Missing or invalid authorization token");
+			structure.setStatus("error");
+			structure.setPlatform(null);
+			structure.setData(null);
+			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.UNAUTHORIZED);
+		}
+		String jwtToken = token.substring(7);
+		String userId = jwtUtilConfig.extractUserId(jwtToken);
+		QuantumShareUser user = userDao.fetchUser(userId);
+		if (user == null) {
+			structure.setCode(HttpStatus.NOT_FOUND.value());
+			structure.setMessage("user doesn't exists, please signup");
+			structure.setStatus("error");
+			structure.setData(null);
+			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
+		}
+		return logoutService.disconnectTelegram(user);
 	}
 
 }

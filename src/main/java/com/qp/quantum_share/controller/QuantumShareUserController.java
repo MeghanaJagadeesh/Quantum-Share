@@ -99,25 +99,9 @@ public class QuantumShareUserController {
 			structure.setData(null);
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.UNAUTHORIZED);
 		}
-		String jwtToken = token.substring(7); // remove "Bearer " prefix
+		String jwtToken = token.substring(7); 
 		String userId = jwtUtilConfig.extractUserId(jwtToken);
 		return quantumShareUserService.accountOverView(userId,file);
 	}
-	
-//	@PostMapping("/logout")
-//	public ResponseEntity<ResponseStructure<String>> logout(){
-//		String token = request.getHeader("Authorization");
-//		if (token == null || !token.startsWith("Bearer ")) {
-//			structure.setCode(115);
-//			structure.setMessage("Missing or invalid authorization token");
-//			structure.setStatus("error");
-//			structure.setPlatform(null);
-//			structure.setData(null);
-//			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.UNAUTHORIZED);
-//		}
-//		String jwtToken = token.substring(7);
-//		String userId = jwtUtilConfig.extractUserId(jwtToken);
-//		return quantumShareUserService.logout(userId);
-//	}
 
 }

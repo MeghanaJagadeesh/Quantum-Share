@@ -25,7 +25,8 @@ public class SendMail {
 	public void sendVerificationEmail(QuantumShareUser userDto) {
 		MimeMessage message = mailSender.createMimeMessage();
 		MimeMessageHelper helper = new MimeMessageHelper(message);
-		String verificationLink = "https://quantumshare.quantumparadigm.in/verify?token=" + userDto.getVerificationToken();
+		String verificationLink = "https://quantumshare.quantumparadigm.in/verify?token="
+				+ userDto.getVerificationToken();
 //		String verificationLink = "http://localhost:3000/verify?token=" + userDto.getVerificationToken();
 //		String verificationLink = "http://localhost:7532/quantum-socialshare/user/verify?token="
 //				+ userDto.getVerificationToken();
