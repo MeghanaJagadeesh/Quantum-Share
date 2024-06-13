@@ -2,12 +2,11 @@ package com.qp.quantum_share.services;
 
 import java.io.IOException;
 import java.security.SecureRandom;
-import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ByteArrayResource;
+import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -15,7 +14,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
@@ -30,8 +28,10 @@ import com.qp.quantum_share.dto.MediaPost;
 import com.qp.quantum_share.dto.QuantumShareUser;
 import com.qp.quantum_share.dto.SocialAccounts;
 import com.qp.quantum_share.dto.TelegramUser;
+import com.qp.quantum_share.response.ErrorResponse;
 import com.qp.quantum_share.response.ResponseStructure;
 import com.qp.quantum_share.response.ResponseWrapper;
+import com.qp.quantum_share.response.SuccessResponse;
 
 @Service
 public class TelegramService {
@@ -40,10 +40,19 @@ public class TelegramService {
 	ResponseStructure<String> structure;
 
 	@Autowired
-	ObjectMapper objectMapper;
+	SuccessResponse successResponse;
 
 	@Autowired
-	SocialAccounts socialAccounts;
+	ErrorResponse errorResponse;
+
+	@Autowired
+	SecureRandom secureRandom;
+
+	@Autowired
+	StringBuilder stringBuilder;
+
+	@Autowired
+	ObjectMapper objectMapper;
 
 	@Autowired
 	QuantumShareUserDao userDao;
@@ -57,53 +66,70 @@ public class TelegramService {
 	@Autowired
 	HttpHeaders headers;
 
+	@Autowired
+	MultiValueMap<String, Object> linkedMultiValueMap;
+
+	@Autowired
+	ConfigurationClass.ByteArrayResourceFactory byteArrayResourceFactory;
+
+	@Autowired
+	RestTemplate restTemplate;
+
+	@Autowired
+	ApplicationContext applicationContext;
+
+	@Autowired
+	SocialAccounts socialAccounts;
+
+	@Autowired
+	TelegramUser telegramUser;
+
 	@Value("${telegram.bot.token}")
-	private String telegramBotToken;
-
-	private final RestTemplate restTemplate;
-
-	public TelegramService(RestTemplate restTemplate) {
-		this.restTemplate = restTemplate;
-	}
+	String telegramBotToken;
 
 //	Telegram Connecting
 	private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
 	public ResponseEntity<ResponseStructure<String>> generateTelegramCode(QuantumShareUser user) {
-		SecureRandom random = new SecureRandom();
-		StringBuilder sb = new StringBuilder("QS-");
-		for (int i = 0; i < 15; i++) { // Changed to < 15 to generate exactly 15 characters after "QS-"
-			int index = random.nextInt(CHARACTERS.length());
+		StringBuilder sb = applicationContext.getBean(StringBuilder.class);
+		sb.append("QS-");
+		for (int i = 0; i < 15; i++) {
+			int index = secureRandom.nextInt(CHARACTERS.length());
 			sb.append(CHARACTERS.charAt(index));
 		}
 		String telegramCode = sb.toString();
-		System.out.println("TelegramCode : " + telegramCode);
+		System.out.println("TelegramCode: " + telegramCode);
 
 		saveTelegramCode(user, telegramCode);
 
-		ResponseStructure<String> structure = new ResponseStructure<>();
 		structure.setCode(HttpStatus.OK.value());
 		structure.setMessage("Telegram code generated successfully");
 		structure.setStatus("success");
 		structure.setPlatform("telegram");
 		structure.setData(telegramCode);
-		return new ResponseEntity<>(structure, HttpStatus.OK);
+		return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
 	}
 
 	private void saveTelegramCode(QuantumShareUser user, String telegramCode) {
-		SocialAccounts socialAccounts = user.getSocialAccounts();
-		if (socialAccounts == null) {
-			socialAccounts = new SocialAccounts();
-			user.setSocialAccounts(socialAccounts);
-		}
-
-		TelegramUser telegramUser = socialAccounts.getTelegramUser();
-		if (telegramUser == null) {
-			telegramUser = new TelegramUser();
+		SocialAccounts userSocialAccounts = user.getSocialAccounts();
+		if (userSocialAccounts == null) {
+			telegramUser.setTelegramCode(telegramCode);
+//			userTelegramUser = telegramUser;
 			socialAccounts.setTelegramUser(telegramUser);
+			user.setSocialAccounts(socialAccounts);
+			userDao.save(user);
+		} else if (userSocialAccounts.getTelegramUser() == null) {
+			telegramUser.setTelegramCode(telegramCode);
+			userSocialAccounts.setTelegramUser(telegramUser);
+			user.setSocialAccounts(userSocialAccounts);
+			userDao.save(user);
+		} else {
+			TelegramUser telUser = userSocialAccounts.getTelegramUser();
+			telUser.setTelegramCode(telegramCode);
+			userSocialAccounts.setTelegramUser(telUser);
+			user.setSocialAccounts(userSocialAccounts);
+			userDao.save(user);
 		}
-		telegramUser.setTelegramCode(telegramCode);
-		userDao.save(user);
 	}
 
 //  Fetching Group Details
@@ -188,12 +214,11 @@ public class TelegramService {
 
 		headers.setContentType(MediaType.APPLICATION_JSON);
 
-		Map<String, Object> body = new HashMap<>();
+		Map<String, Object> body = config.getMap();
 		body.put("chat_id", telgramChatId);
 		body.put("text", message);
 
-		HttpEntity<Map<String, Object>> responseEntity = new HttpEntity<>(body, headers);
-
+		HttpEntity<Map<String, Object>> responseEntity = config.getMapHttpEntity(body, headers);
 		ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, responseEntity, String.class);
 
 		if (response.getStatusCode() == HttpStatus.OK) {
@@ -254,20 +279,19 @@ public class TelegramService {
 
 	public void saveGroupInfo(QuantumShareUser user, long telegramChatId, String telegramGroupName,
 			int telegramGroupMembersCount, String telegramProfileUrl) {
-		SocialAccounts socialAccounts = user.getSocialAccounts();
-		if (socialAccounts == null) {
-			socialAccounts = new SocialAccounts();
+		SocialAccounts userSocialAccounts = user.getSocialAccounts();
+		if (userSocialAccounts == null) {
 			user.setSocialAccounts(socialAccounts);
 		}
-		TelegramUser telegramUser = socialAccounts.getTelegramUser();
-		if (telegramUser == null) {
-			telegramUser = new TelegramUser();
-			socialAccounts.setTelegramUser(telegramUser);
+		TelegramUser userTelegramUser = userSocialAccounts.getTelegramUser();
+		if (userTelegramUser == null) {
+			userTelegramUser = telegramUser;
+			userSocialAccounts.setTelegramUser(userTelegramUser);
 		}
-		telegramUser.setTelegramChatId(telegramChatId);
-		telegramUser.setTelegramGroupName(telegramGroupName);
-		telegramUser.setTelegramGroupMembersCount(telegramGroupMembersCount);
-		telegramUser.setTelegramProfileUrl(telegramProfileUrl);
+		userTelegramUser.setTelegramChatId(telegramChatId);
+		userTelegramUser.setTelegramGroupName(telegramGroupName);
+		userTelegramUser.setTelegramGroupMembersCount(telegramGroupMembersCount);
+		userTelegramUser.setTelegramProfileUrl(telegramProfileUrl);
 		userDao.save(user);
 	}
 
@@ -283,11 +307,9 @@ public class TelegramService {
 			structure.setData(null);
 			return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure), HttpStatus.NOT_FOUND);
 		}
-
 		long telgramChatId = user.getTelegramChatId();
 		String contentType = mediaFile.getContentType();
 		System.out.println(contentType);
-
 		try {
 			if (contentType != null && contentType.startsWith("image/")) {
 				System.out.println("Send photo to group");
@@ -304,19 +326,19 @@ public class TelegramService {
 				return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure),
 						HttpStatus.BAD_REQUEST);
 			}
-			structure.setMessage("Posted On Telegram");
-			structure.setCode(HttpStatus.OK.value());
-			structure.setPlatform("telegram");
-			structure.setStatus("success");
-			structure.setData(null);
-			return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure), HttpStatus.OK);
+			successResponse.setMessage("Posted On Telegram");
+			successResponse.setCode(HttpStatus.OK.value());
+			successResponse.setPlatform("telegram");
+			successResponse.setStatus("success");
+			successResponse.setData(null);
+			return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(successResponse), HttpStatus.OK);
 		} catch (Exception e) {
-			structure.setMessage("Failed to send media: " + e.getMessage());
-			structure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
-			structure.setPlatform("telegram");
-			structure.setStatus("error");
-			structure.setData(null);
-			return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure),
+			errorResponse.setMessage("Failed to send media: " + e.getMessage());
+			errorResponse.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			errorResponse.setPlatform("telegram");
+			errorResponse.setStatus("error");
+			errorResponse.setData(null);
+			return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(errorResponse),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
@@ -328,17 +350,13 @@ public class TelegramService {
 
 		headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
-		MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+		MultiValueMap<String, Object> body = linkedMultiValueMap;
 		body.add("chat_id", telgramChatId);
 		body.add("caption", caption);
-		body.add("photo", new ByteArrayResource(mediaFile.getBytes()) {
-			@Override
-			public String getFilename() {
-				return mediaFile.getOriginalFilename();
-			}
-		});
+		body.add("photo", byteArrayResourceFactory.createByteArrayResource(mediaFile.getBytes(),
+				mediaFile.getOriginalFilename()));
 
-		HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+		HttpEntity<MultiValueMap<String, Object>> requestEntity = config.getHttpEntityWithMap(body, headers);
 		ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, requestEntity, String.class);
 
 		if (response.getStatusCode() == HttpStatus.OK) {
@@ -355,17 +373,13 @@ public class TelegramService {
 
 		headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
-		MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+		MultiValueMap<String, Object> body = linkedMultiValueMap;
 		body.add("chat_id", telgramChatId);
 		body.add("caption", caption);
-		body.add("video", new ByteArrayResource(mediaFile.getBytes()) {
-			@Override
-			public String getFilename() {
-				return mediaFile.getOriginalFilename();
-			}
-		});
+		body.add("video", byteArrayResourceFactory.createByteArrayResource(mediaFile.getBytes(),
+				mediaFile.getOriginalFilename()));
 
-		HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+		HttpEntity<MultiValueMap<String, Object>> requestEntity = config.getHttpEntityWithMap(body, headers);
 		ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, requestEntity, String.class);
 
 		if (response.getStatusCode() == HttpStatus.OK) {
