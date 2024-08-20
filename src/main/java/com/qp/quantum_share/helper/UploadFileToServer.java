@@ -35,7 +35,6 @@ public class UploadFileToServer {
 			PutObjectResult result = s3Client.putObject(request);
 
 			String publicUrl = s3Client.getUrl(BUCKET_NAME, key).toString();
-			System.out.println("publicUrl : " + publicUrl);
 			return publicUrl;
 		} catch (IOException e) {
 			throw new CommonException(e.getMessage());

@@ -8,6 +8,8 @@ import org.springframework.stereotype.Component;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import lombok.Data;
@@ -18,7 +20,8 @@ import lombok.Data;
 public class FaceBookUser {
 
 	@Id
-	private String fbId;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private int fbId;
 	private String fbuserId;
 	private String fbuserUsername;
 	private String firstName;

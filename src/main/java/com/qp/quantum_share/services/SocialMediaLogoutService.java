@@ -2,6 +2,7 @@ package com.qp.quantum_share.services;
 
 import java.util.List;
 
+import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 import com.qp.quantum_share.dao.FaceBookPageDao;
 import com.qp.quantum_share.dao.FacebookUserDao;
 import com.qp.quantum_share.dao.InstagramUserDao;
+import com.qp.quantum_share.dao.PostsDao;
 import com.qp.quantum_share.dao.QuantumShareUserDao;
 import com.qp.quantum_share.dao.SocialAccountDao;
 import com.qp.quantum_share.dao.TelegramUserDao;
@@ -45,6 +47,12 @@ public class SocialMediaLogoutService {
 	@Autowired
 	TelegramUserDao telegramUserDao;
 
+	@Autowired
+	PostsDao postsDao;
+	
+	@Autowired
+	AnalyticsPostService analyticsPostService;
+
 	public ResponseEntity<ResponseStructure<String>> disconnectFacebook(QuantumShareUser user) {
 		SocialAccounts accounts = user.getSocialAccounts();
 		if (accounts == null || accounts.getFacebookUser() == null) {
@@ -57,16 +65,18 @@ public class SocialMediaLogoutService {
 		}
 
 		FaceBookUser deleteUser = accounts.getFacebookUser();
-		List<FacebookPageDetails> pages = accounts.getFacebookUser().getPageDetails();
-		System.out.println("1 " + pages);
+
+		Hibernate.initialize(deleteUser.getPageDetails());
+		List<FacebookPageDetails> pages = deleteUser.getPageDetails();
 		accounts.getFacebookUser().setPageDetails(null);
 		accounts.setFacebookUser(null);
 		user.setSocialAccounts(accounts);
 		userDao.save(user);
-		System.out.println("2 " + pages);
 		facebookUserDao.deleteFbUser(deleteUser);
 		pageDao.deletePage(pages);
 
+		analyticsPostService.deletePosts(user,"facebook");
+		
 		structure.setCode(HttpStatus.OK.value());
 		structure.setMessage("Facebook Disconnected Successfully");
 		structure.setPlatform("facebook");
@@ -91,7 +101,7 @@ public class SocialMediaLogoutService {
 		userDao.save(user);
 
 		instagramUserDao.deleteUser(deleteUser);
-
+		analyticsPostService.deletePosts(user,"instagram");
 		structure.setCode(HttpStatus.OK.value());
 		structure.setMessage("Instagram Disconnected Successfully");
 		structure.setPlatform("instagram");

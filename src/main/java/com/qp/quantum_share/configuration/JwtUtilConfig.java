@@ -16,8 +16,8 @@ public class JwtUtilConfig {
 		return Jwts.parser().setSigningKey(secretKey).parseClaimsJws(token).getBody();
 	}
 
-	public String extractUserId(String token) {
-		return extractAllClaims(token).get("userId", String.class);
+	public int extractUserId(String token) {
+		return extractAllClaims(token).get("userId", Integer.class);
 	}
 
 	public String extractEmail(String token) {

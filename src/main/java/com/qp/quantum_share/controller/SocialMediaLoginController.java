@@ -44,7 +44,7 @@ public class SocialMediaLoginController {
 
 	@Autowired
 	TelegramService telegramService;
-	
+
 	@Autowired
 	TwitterService twitterService;
 
@@ -61,7 +61,7 @@ public class SocialMediaLoginController {
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.UNAUTHORIZED);
 		}
 		String jwtToken = token.substring(7); // remove "Bearer " prefix
-		String userId = jwtUtilConfig.extractUserId(jwtToken);
+		int userId = jwtUtilConfig.extractUserId(jwtToken);
 		QuantumShareUser user = userDao.fetchUser(userId);
 		if (user == null) {
 			structure.setCode(HttpStatus.NOT_FOUND.value());
@@ -84,8 +84,6 @@ public class SocialMediaLoginController {
 	// Instagram
 	@PostMapping("/instagram/user/verify-token")
 	public ResponseEntity<ResponseStructure<String>> callbackInsta(@RequestParam(required = false) String code) {
-		System.out.println("instagram invoked");
-		System.out.println(code);
 		String token = request.getHeader("Authorization");
 		if (token == null || !token.startsWith("Bearer ")) {
 			structure.setCode(115);
@@ -95,8 +93,8 @@ public class SocialMediaLoginController {
 			structure.setData(null);
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.UNAUTHORIZED);
 		}
-		String jwtToken = token.substring(7); // remove "Bearer " prefix
-		String userId = jwtUtilConfig.extractUserId(jwtToken);
+		String jwtToken = token.substring(7);
+		int userId = jwtUtilConfig.extractUserId(jwtToken);
 		QuantumShareUser user = userDao.fetchUser(userId);
 		if (user == null) {
 			structure.setCode(HttpStatus.NOT_FOUND.value());
@@ -129,7 +127,7 @@ public class SocialMediaLoginController {
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.UNAUTHORIZED);
 		}
 		String jwtToken = token.substring(7);
-		String userId = jwtUtilConfig.extractUserId(jwtToken);
+		int userId = jwtUtilConfig.extractUserId(jwtToken);
 		QuantumShareUser user = userDao.fetchUser(userId);
 		if (user == null) {
 			structure.setCode(HttpStatus.NOT_FOUND.value());
@@ -140,8 +138,6 @@ public class SocialMediaLoginController {
 		}
 		return twitterService.getAuthorizationUrl(user);
 	}
-
-	
 
 	@PostMapping("/twitter/user/verify-token")
 	public ResponseEntity<ResponseStructure<String>> callbackTwitter(@RequestParam(required = false) String code) {
@@ -155,7 +151,7 @@ public class SocialMediaLoginController {
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.UNAUTHORIZED);
 		}
 		String jwtToken = token.substring(7); // remove "Bearer " prefix
-		String userId = jwtUtilConfig.extractUserId(jwtToken);
+		int userId = jwtUtilConfig.extractUserId(jwtToken);
 		QuantumShareUser user = userDao.fetchUser(userId);
 		if (user == null) {
 			structure.setCode(HttpStatus.NOT_FOUND.value());
@@ -175,55 +171,54 @@ public class SocialMediaLoginController {
 		return twitterService.verifyToken(code, user);
 	}
 
-	//telegram login
-		@GetMapping("/telegram/user/connect")
-		public ResponseEntity<ResponseStructure<String>> connectTelegram() {
-			System.out.println("Telegram Invoked");
-			String token = request.getHeader("Authorization");
-			if (token == null || !token.startsWith("Bearer ")) {
-				structure.setCode(115);
-				structure.setMessage("Missing or invalid authorization token");
-				structure.setStatus("error");
-				structure.setPlatform(null);
-				structure.setData(null);
-				return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.UNAUTHORIZED);
-			}
-			String jwtToken = token.substring(7);
-			String userId = jwtUtilConfig.extractUserId(jwtToken);
-			QuantumShareUser user = userDao.fetchUser(userId);
-			if (user == null) {
-				structure.setCode(HttpStatus.NOT_FOUND.value());
-				structure.setMessage("User doesn't exists, Please Signup");
-				structure.setStatus("error");
-				structure.setData(null);
-				return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
-			}
-			return telegramService.generateTelegramCode(user);
+	// telegram login
+	@GetMapping("/telegram/user/connect")
+	public ResponseEntity<ResponseStructure<String>> connectTelegram() {
+		String token = request.getHeader("Authorization");
+		if (token == null || !token.startsWith("Bearer ")) {
+			structure.setCode(115);
+			structure.setMessage("Missing or invalid authorization token");
+			structure.setStatus("error");
+			structure.setPlatform(null);
+			structure.setData(null);
+			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.UNAUTHORIZED);
 		}
-		
-		// Fetching Group Details
-		@GetMapping("/telegram/user/groupDetails")
-		public ResponseEntity<ResponseStructure<String>> getGroupDetails() {
-			System.out.println("Telegram Invoked");
-			String token = request.getHeader("Authorization");
-			if (token == null || !token.startsWith("Bearer ")) {
-				structure.setCode(115);
-				structure.setMessage("Missing or invalid authorization token");
-				structure.setStatus("error");
-				structure.setPlatform(null);
-				structure.setData(null);
-				return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.UNAUTHORIZED);
-			}
-			String jwtToken = token.substring(7);
-			String userId = jwtUtilConfig.extractUserId(jwtToken);
-			QuantumShareUser user = userDao.fetchUser(userId);
-			if (user == null) {
-				structure.setCode(HttpStatus.NOT_FOUND.value());
-				structure.setMessage("User doesn't exists, Please Signup");
-				structure.setStatus("error");
-				structure.setData(null);
-				return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
-			}
-			return telegramService.pollTelegramUpdates(user);
+		String jwtToken = token.substring(7);
+		int userId = jwtUtilConfig.extractUserId(jwtToken);
+		QuantumShareUser user = userDao.fetchUser(userId);
+		if (user == null) {
+			structure.setCode(HttpStatus.NOT_FOUND.value());
+			structure.setMessage("User doesn't exists, Please Signup");
+			structure.setStatus("error");
+			structure.setData(null);
+			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
 		}
+		return telegramService.generateTelegramCode(user);
+	}
+
+	// Fetching Group Details
+	@GetMapping("/telegram/user/authorization")
+	public ResponseEntity<ResponseStructure<String>> getGroupDetails() {
+		String token = request.getHeader("Authorization");
+		if (token == null || !token.startsWith("Bearer ")) {
+			structure.setCode(115);
+			structure.setMessage("Missing or invalid authorization token");
+			structure.setStatus("error");
+			structure.setPlatform(null);
+			structure.setData(null);
+			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.UNAUTHORIZED);
+		}
+		String jwtToken = token.substring(7);
+		int userId = jwtUtilConfig.extractUserId(jwtToken);
+		QuantumShareUser user = userDao.fetchUser(userId);
+		if (user == null) {
+			structure.setCode(HttpStatus.NOT_FOUND.value());
+			structure.setMessage("User doesn't exists, Please Signup");
+			structure.setStatus("error");
+			structure.setData(null);
+			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
+		}
+		return telegramService.pollTelegramUpdates(user);
+	}
+
 }

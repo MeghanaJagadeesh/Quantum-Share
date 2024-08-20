@@ -6,6 +6,7 @@ import java.util.Map;
 
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,7 @@ import com.qp.quantum_share.dao.QuantumShareUserDao;
 import com.qp.quantum_share.dto.PaymentDetails;
 import com.qp.quantum_share.dto.QuantumShareUser;
 import com.qp.quantum_share.dto.SubscriptionDetails;
+import com.qp.quantum_share.exception.CommonException;
 import com.qp.quantum_share.response.ResponseStructure;
 import com.razorpay.Order;
 import com.razorpay.RazorpayClient;
@@ -35,7 +37,16 @@ public class PaymentService {
 	@Autowired
 	ConfigurationClass configure;
 
-	public ResponseEntity<ResponseStructure<String>> subscription(int amount, String userId) {
+	@Value("${quantumshare.standardDays}")
+	private int standardDays;
+	
+	@Value("${quantumshare.razorpay.key_id}")
+	private String key_id;
+	
+	@Value("${quantumshare.razorpay.key_secret}")
+	private String key_secret;
+
+	public ResponseEntity<ResponseStructure<String>> subscription(double amount, int userId, String packageName) {
 		QuantumShareUser user = userDao.fetchUser(userId);
 		if (user == null) {
 			structure.setCode(HttpStatus.NOT_FOUND.value());
@@ -45,29 +56,32 @@ public class PaymentService {
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
 		}
 		try {
-			RazorpayClient client = new RazorpayClient("rzp_test_jz1LzZqo0ZPL70", "viqcVRcae8CtVdRDP63A7YbB");
+			RazorpayClient client = new RazorpayClient(key_id, key_secret);
 			JSONObject json = new JSONObject();
 			json.put("amount", amount * 100);
 			json.put("currency", "INR");
 
 			Order order = client.orders.create(json);
 			if (user.getSubscriptionDetails() == null) {
-				subscriptionDetails.setNameOfPackage("basic");
+				subscriptionDetails.setNameOfPackage(packageName);
 				subscriptionDetails.setPackageAmount(amount);
-
+				if (packageName.equals("standard"))
+					subscriptionDetails.setSubscriptiondays(standardDays);
 				user.setSubscriptionDetails(subscriptionDetails);
 				userDao.save(user);
 			} else {
 				SubscriptionDetails subscription = user.getSubscriptionDetails();
 				subscription.setPackageAmount(amount);
-				subscription.setNameOfPackage("basic");
-
+				subscription.setNameOfPackage(packageName);
+				if (packageName.equals("standard"))
+					subscriptionDetails.setSubscriptiondays(standardDays);
+				
 				user.setSubscriptionDetails(subscription);
 				userDao.save(user);
 			}
 
 			Map<String, Object> map = configure.getMap();
-			map.put("key", "rzp_test_jz1LzZqo0ZPL70");
+			map.put("key", key_id);
 			map.put("amount", amount);
 			map.put("currency", "INR");
 			map.put("name", "Quantum Share");
@@ -92,13 +106,11 @@ public class PaymentService {
 
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.CREATED);
 		} catch (RazorpayException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw new CommonException(e.getMessage());
 		}
-		return null;
 	}
 
-	public ResponseEntity<ResponseStructure<String>> handleCallbackPayment(double amount, String userId,
+	public ResponseEntity<ResponseStructure<String>> handleCallbackPayment(double amount, int userId,
 			String razorpay_order_id, String razorpay_payment_id, String razorpay_signature) {
 		QuantumShareUser user = userDao.fetchUser(userId);
 		if (user == null) {
@@ -111,13 +123,11 @@ public class PaymentService {
 		SubscriptionDetails subscription = user.getSubscriptionDetails();
 		if (subscription != null) {
 			List<PaymentDetails> paymentList = user.getSubscriptionDetails().getPayments();
-			if (paymentList.isEmpty()||paymentList==null) {
-				System.out.println("list is empty");
+			if (paymentList.isEmpty() || paymentList == null) {
 				paymentList = configure.getPaymentList();
 			}
-			System.out.println("list "+paymentList);
 			subscription.setSubscribed(true);
-			subscription.setSubscriptiondays(20);
+			subscription.setSubscriptionDate(LocalDate.now());
 
 			PaymentDetails paymentDetails = configure.paymentDetails();
 			paymentDetails.setOrder_id(razorpay_order_id);

@@ -179,7 +179,6 @@ public class AiService {
 	}
 
 	public byte[] generateImage(String textPrompt) {
-		System.out.println("image method");
 		headers.setContentType(MediaType.APPLICATION_JSON);
 		headers.setAccept(Collections.singletonList(MediaType.IMAGE_PNG));
 		headers.setBearerAuth(apiToken);
@@ -193,7 +192,6 @@ public class AiService {
 			// Make the HTTP request
 			ResponseEntity<byte[]> responseEntity = restTemplate.exchange(apiUrl, HttpMethod.POST, entity,
 					byte[].class);
-			System.out.println("response "+responseEntity);
 			// Check response status
 			HttpStatusCode statusCode = responseEntity.getStatusCode();
 			if (statusCode == HttpStatus.OK) {

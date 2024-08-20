@@ -1,6 +1,6 @@
 package com.qp.quantum_share.dto;
 
-import org.springframework.stereotype.Component;
+import java.time.LocalDate;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -11,19 +11,20 @@ import lombok.Data;
 
 @Entity
 @Data
-@Component
-public class InstagramUser {
+public class SocialMediaPosts {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private int instaId;
-	private String instaUserId;
-	private String instaUsername;
-	private int follwersCount;
-
-	@Column(length = 4000)
-	private String pictureUrl;
-
+	private int pid;
+	private String postid;
+	private String profileId;
+	private String profileName;
+	private String platformName;
+	private LocalDate postDate;
+	private String postTime;
+	private String mediaType;
+	
 	@Column(length = 2000)
-	private String instUserAccessToken;
+	private String imageUrl;
+
 }

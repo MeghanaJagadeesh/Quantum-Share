@@ -66,8 +66,6 @@ public class FacebookAccessTokenService {
 	public ResponseEntity<ResponseStructure<String>> verifyToken(String access_Token, QuantumShareUser user) {
 		String responseUser = fetchUser(access_Token);
 		String responsePage = fetchUserPages(access_Token);
-		System.out.println(responseUser);
-		System.out.println(responsePage);
 		return saveUser(responseUser, responsePage, access_Token, user);
 	}
 
@@ -78,40 +76,60 @@ public class FacebookAccessTokenService {
 		try {
 			if (fbUser != null) {
 				JsonNode fbuser = objectMapper.readTree(fbUser);
-				String lastUserId = faceBookUserDao.findLastUserId();
-				String id;
-				FaceBookUser exfbUser = null;
-				List<FacebookPageDetails> existList = null;
-				if (user.getSocialAccounts() == null || user.getSocialAccounts().getFacebookUser() == null) {
-					id = generateId.generateFbId(lastUserId);
-				} else {
-					id = user.getSocialAccounts().getFacebookUser().getFbId();
-					exfbUser = facebookDao.findById(id);
-					existList = exfbUser.getPageDetails();
-				}
-				System.out.println("existList " + existList);
-				System.out.println("generateId.generateFbId()  " + id);
-//				socialAccounts.set(id);
-//				mainuser.setName("testUser");
-
-				faceBookUser.setFbId(id);
-				faceBookUser.setFbuserId(fbuser.has("id") ? fbuser.get("id").asText() : null);
-				faceBookUser.setFbuserUsername(fbuser.has("name") ? fbuser.get("name").asText() : null);
-				faceBookUser.setUserAccessToken(acceToken);
-				faceBookUser.setEmail(fbuser.has("email") ? fbuser.get("email").asText() : null);
-				faceBookUser.setBirthday(fbuser.has("birthday") ? fbuser.get("birthday").asText() : null);
-				faceBookUser.setFirstName(fbuser.has("first_name") ? fbuser.get("first_name").asText() : null);
-				faceBookUser.setLastName((fbuser.has("last_name") ? fbuser.get("last_name").asText() : null));
-				String pictureUrl = fbuser.has("picture") ? fbuser.get("picture").get("data").get("url").asText()
-						: null;
-				faceBookUser.setPictureUrl(pictureUrl);
-				SocialAccounts accounts = user.getSocialAccounts();
-				if(accounts==null) {
-					socialAccounts.setFacebookUser(faceBookUser);
+				System.out.println("fb "+fbUser);
+				FaceBookUser savedUser = null;
+				if (user.getSocialAccounts() == null) {
+					savedUser = faceBookUser;
+					savedUser.setFbuserId(fbuser.has("id") ? fbuser.get("id").asText() : null);
+					savedUser.setFbuserUsername(fbuser.has("name") ? fbuser.get("name").asText() : null);
+					savedUser.setUserAccessToken(acceToken);
+					savedUser.setEmail(fbuser.has("email") ? fbuser.get("email").asText() : null);
+					savedUser.setBirthday(fbuser.has("birthday") ? fbuser.get("birthday").asText() : null);
+					savedUser.setFirstName(fbuser.has("first_name") ? fbuser.get("first_name").asText() : null);
+					savedUser.setLastName((fbuser.has("last_name") ? fbuser.get("last_name").asText() : null));
+					String pictureUrl = fbuser.has("picture") ? fbuser.get("picture").get("data").get("url").asText()
+							: null;
+					savedUser.setPictureUrl(pictureUrl);
+					socialAccounts.setFacebookUser(savedUser);
 					user.setSocialAccounts(socialAccounts);
-				}else if(accounts.getFacebookUser()==null) {
-					accounts.setFacebookUser(faceBookUser);
+					userDao.save(user);
+				} else if (user.getSocialAccounts().getFacebookUser() == null) {
+					savedUser = faceBookUser;
+					savedUser.setFbuserId(fbuser.has("id") ? fbuser.get("id").asText() : null);
+					savedUser.setFbuserUsername(fbuser.has("name") ? fbuser.get("name").asText() : null);
+					savedUser.setUserAccessToken(acceToken);
+					savedUser.setEmail(fbuser.has("email") ? fbuser.get("email").asText() : null);
+					savedUser.setBirthday(fbuser.has("birthday") ? fbuser.get("birthday").asText() : null);
+					savedUser.setFirstName(fbuser.has("first_name") ? fbuser.get("first_name").asText() : null);
+					savedUser.setLastName((fbuser.has("last_name") ? fbuser.get("last_name").asText() : null));
+					String pictureUrl = fbuser.has("picture") ? fbuser.get("picture").get("data").get("url").asText()
+							: null;
+					savedUser.setPictureUrl(pictureUrl);
+
+					SocialAccounts accounts = user.getSocialAccounts();
+					accounts.setFacebookUser(savedUser);
+					user.setSocialAccounts(accounts);
+					userDao.save(user);
+				} else {
+					SocialAccounts socialAccounts = user.getSocialAccounts();
+					FaceBookUser exfbUser = socialAccounts.getFacebookUser();
+					savedUser = exfbUser;
+					savedUser.setFbuserId(fbuser.has("id") ? fbuser.get("id").asText() : null);
+					savedUser.setFbuserUsername(fbuser.has("name") ? fbuser.get("name").asText() : null);
+					savedUser.setUserAccessToken(acceToken);
+					savedUser.setEmail(fbuser.has("email") ? fbuser.get("email").asText() : null);
+					savedUser.setBirthday(fbuser.has("birthday") ? fbuser.get("birthday").asText() : null);
+					savedUser.setFirstName(fbuser.has("first_name") ? fbuser.get("first_name").asText() : null);
+					savedUser.setLastName((fbuser.has("last_name") ? fbuser.get("last_name").asText() : null));
+					String pictureUrl = fbuser.has("picture") ? fbuser.get("picture").get("data").get("url").asText()
+							: null;
+					savedUser.setPictureUrl(pictureUrl);
+					socialAccounts.setFacebookUser(savedUser);
+					user.setSocialAccounts(socialAccounts);
+					userDao.save(user);
+
 				}
+
 				List<FacebookPageDetails> pageList = new ArrayList<>();
 				if (userPage != null) {
 					JsonNode fbuserPage = objectMapper.readTree(userPage);
@@ -119,7 +137,7 @@ public class FacebookAccessTokenService {
 
 					if (data != null && data.isArray()) {
 						int numberOfPages = data.size();
-						
+
 						for (JsonNode page : data) {
 							FacebookPageDetails pages = configuration.pageDetails();
 							pages.setFbPageId(page.has("id") ? page.get("id").asText() : null);
@@ -130,26 +148,32 @@ public class FacebookAccessTokenService {
 									&& page.get("instagram_business_account").has("id")
 											? page.get("instagram_business_account").get("id").asText()
 											: null);
+							pages.setPictureUrl(page.get("picture").get("data").get("url").asText());
 //							pageDao.savePage(pages);
-							System.out.println(page);
-							System.out.println(page.get("picture").get("data").get("url"));
-							pageProfile.put(page.get("name") != null ? page.get("name").asText() : null ,page.get("picture").get("data").get("url"));
+							pageProfile.put(page.get("name") != null ? page.get("name").asText() : null,
+									page.get("picture").get("data").get("url"));
 							pageList.add(pages);
-							
+
 						}
-						faceBookUser.setPageDetails(pageList);
-						faceBookUser.setNoOfFbPages(numberOfPages);
+						SocialAccounts acc = user.getSocialAccounts();
+						FaceBookUser fb = acc.getFacebookUser();
+						fb.setNoOfFbPages(numberOfPages);
+						fb.setPageDetails(pageList);
+						acc.setFacebookUser(fb);
+						user.setSocialAccounts(acc);
+						userDao.save(user);
+
 					}
 				}
 //				facebookDao.saveUser(faceBookUser);
 //				accountDao.save(socialAccounts);
-				
 				userDao.save(user);
 				structure.setCode(HttpStatus.CREATED.value());
 				structure.setMessage("Facebook Connected Successfully");
 				structure.setStatus("success");
 				structure.setPlatform("facebook");
 				Map<String, Object> data = configuration.getMap();
+				data.clear();
 				FaceBookUser datauser = user.getSocialAccounts().getFacebookUser();
 				data.put("facebookUrl", datauser.getPictureUrl());
 				data.put("facebookUsername", datauser.getFbuserUsername());
@@ -190,7 +214,6 @@ public class FacebookAccessTokenService {
 		HttpEntity<String> requestEntity = configuration.getHttpEntity(configuration.httpHeaders());
 		ResponseEntity<String> response = configuration.getRestTemplate().exchange(apiUrl, HttpMethod.GET,
 				requestEntity, String.class);
-		System.out.println("fetchUserPages " + response);
 		if (response.getStatusCode() == HttpStatus.OK && response != null)
 			return response.getBody();
 		else

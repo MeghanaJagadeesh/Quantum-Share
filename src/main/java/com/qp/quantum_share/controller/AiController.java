@@ -69,7 +69,6 @@ public class AiController {
 
 	@PostMapping("/generate-image")
 	public ResponseEntity<Object> generateImage(@RequestParam(name="textPromt") String textPrompt) {
-	    System.out.println("comming");
 		try {
 	        if (textPrompt == null || textPrompt.isEmpty()) {
 	            return ResponseEntity.status(HttpStatus.BAD_REQUEST)

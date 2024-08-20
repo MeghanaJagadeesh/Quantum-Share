@@ -9,9 +9,10 @@ import javax.crypto.spec.SecretKeySpec;
 
 import org.springframework.stereotype.Component;
 
+import com.qp.quantum_share.exception.CommonException;
+
 @Component
-public class SecurePassword 
-{
+public class SecurePassword {
 	private static SecretKeySpec secretKey;
 	private static byte[] key;
 
@@ -47,8 +48,7 @@ public class SecurePassword
 			cipher.init(Cipher.DECRYPT_MODE, secretKey);
 			return new String(cipher.doFinal(Base64.getDecoder().decode(strToDecrypt)));
 		} catch (Exception e) {
-			System.out.println("Error while decrypting: " + e.toString());
+			throw new CommonException(e.getMessage());
 		}
-		return null;
 	}
 }

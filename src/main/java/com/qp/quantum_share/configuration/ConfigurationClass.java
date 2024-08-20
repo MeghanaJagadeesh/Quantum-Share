@@ -20,6 +20,7 @@ import org.springframework.web.client.RestTemplate;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.qp.quantum_share.dto.FacebookPageDetails;
 import com.qp.quantum_share.dto.PaymentDetails;
+import com.qp.quantum_share.dto.SocialMediaPosts;
 import com.qp.quantum_share.response.ErrorResponse;
 import com.qp.quantum_share.response.ResponseStructure;
 import com.qp.quantum_share.response.ResponseWrapper;
@@ -56,6 +57,7 @@ public class ConfigurationClass {
 	}
 
 	@Bean
+	@Lazy
 	public Map<String, Object> getMap() {
 		return new HashMap<String, Object>();
 	}
@@ -111,19 +113,15 @@ public class ConfigurationClass {
 
 	@Bean
 	@Lazy
+	public List<SocialMediaPosts> getListOfPost() {
+		return new ArrayList<SocialMediaPosts>();
+	}
+
+	@Bean
+	@Lazy
 	public List<PaymentDetails> getPaymentList() {
 		return new ArrayList<PaymentDetails>();
 	}
-//	@Bean
-//	public JsonObject getJsonObject(String json)
-//	{
-//		return new JsonObject(json);
-//	}
-
-//	@Bean
-//	public JavaMailSender mailSender() {
-//		return new JavaMailSenderImpl();
-//	}
 
 	@Bean
 	public SuccessResponse getSuccessResponse() {
@@ -143,7 +141,7 @@ public class ConfigurationClass {
 
 	@Bean
 	public SecureRandom secureRandom() {
-		return new SecureRandom(); 
+		return new SecureRandom();
 	}
 
 	@Bean
@@ -151,26 +149,32 @@ public class ConfigurationClass {
 	public StringBuilder stringBuilder() {
 		return new StringBuilder();
 	}
-	
-	@Bean
-    public ByteArrayResourceFactory byteArrayResourceFactory() {
-        return new ByteArrayResourceFactory();
-    }
 
-    public static class ByteArrayResourceFactory {
-        public ByteArrayResource createByteArrayResource(byte[] byteArray, String filename) {
-            return new ByteArrayResource(byteArray) {
-                @Override
-                public String getFilename() {
-                    return filename;
-                }
-            };
-        }
-    }
-    
-    @Bean
-   	@Lazy
-   	public HttpEntity<Map<String, Object>> getMapHttpEntity(Map<String, Object> body, HttpHeaders headers) {
-   		return new HttpEntity<>(body, headers);
-   	}
+	@Bean
+	public ByteArrayResourceFactory byteArrayResourceFactory() {
+		return new ByteArrayResourceFactory();
+	}
+
+	public static class ByteArrayResourceFactory {
+		public ByteArrayResource createByteArrayResource(byte[] byteArray, String filename) {
+			return new ByteArrayResource(byteArray) {
+				@Override
+				public String getFilename() {
+					return filename;
+				}
+			};
+		}
+	}
+
+	@Bean
+	@Lazy
+	public HttpEntity<Map<String, Object>> getMapHttpEntity(Map<String, Object> body, HttpHeaders headers) {
+		return new HttpEntity<>(body, headers);
+	}
+
+	@Bean
+	@Lazy
+	public SocialMediaPosts getsocialMediaPosts() {
+		return new SocialMediaPosts();
+	}
 }

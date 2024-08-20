@@ -20,6 +20,8 @@ public class FaceBookPageDao {
 
 	public void deletePage(List<FacebookPageDetails> pages) {
 		for(FacebookPageDetails page:pages) {
+			System.out.println(pages);
+//			pages.remove(page);
 			facebookPageRepository.delete(page);
 		}
 	}

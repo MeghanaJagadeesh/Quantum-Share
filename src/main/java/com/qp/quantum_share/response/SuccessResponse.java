@@ -15,5 +15,5 @@ public class SuccessResponse {
 	String message;
 	String platform;
 	Object data;
-	
+	int remainingCredits;
 }

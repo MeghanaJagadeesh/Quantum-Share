@@ -14,10 +14,13 @@ import com.qp.quantum_share.dao.InstagramUserDao;
 import com.qp.quantum_share.dao.QuantumShareUserDao;
 import com.qp.quantum_share.dao.TelegramUserDao;
 import com.qp.quantum_share.dto.MediaPost;
+import com.qp.quantum_share.dto.QuantumShareUser;
 import com.qp.quantum_share.dto.SocialAccounts;
 import com.qp.quantum_share.response.ErrorResponse;
 import com.qp.quantum_share.response.ResponseStructure;
 import com.qp.quantum_share.response.ResponseWrapper;
+
+import twitter4j.TwitterException;
 
 @Service
 public class PostService {
@@ -48,12 +51,16 @@ public class PostService {
 
 	@Autowired
 	TelegramService telegramService;
-	
+
 	@Autowired
 	TelegramUserDao telegramUserDao;
 
-	public ResponseEntity<List<Object>> postOnFb(MediaPost mediaPost, MultipartFile mediaFile,
-			SocialAccounts socialAccounts) {
+	@Autowired
+	TwitterService twitterService;
+	
+	
+	public ResponseEntity<List<Object>> postOnFb(MediaPost mediaPost, MultipartFile mediaFile, QuantumShareUser user) {
+		SocialAccounts socialAccounts = user.getSocialAccounts();
 		List<Object> response = config.getList();
 		if (mediaPost.getMediaPlatform().contains("facebook")) {
 			if (socialAccounts == null || socialAccounts.getFacebookUser() == null) {
@@ -66,8 +73,8 @@ public class PostService {
 				return new ResponseEntity<List<Object>>(response, HttpStatus.NOT_FOUND);
 			}
 			if (socialAccounts.getFacebookUser() != null)
-				return facebookPostService.postMediaToPage(mediaPost, mediaFile,
-						facebookUserDao.findById(socialAccounts.getFacebookUser().getFbId()));
+				return facebookPostService.postMediaToPage(mediaPost, mediaFile, socialAccounts.getFacebookUser(),
+						user);
 			else {
 				structure.setMessage("Please connect your facebook account");
 				structure.setCode(HttpStatus.NOT_FOUND.value());
@@ -82,8 +89,8 @@ public class PostService {
 	}
 
 	public ResponseEntity<ResponseWrapper> postOnInsta(MediaPost mediaPost, MultipartFile mediaFile,
-			SocialAccounts socialAccounts) {
-		System.out.println("main service");
+			QuantumShareUser user) {
+		SocialAccounts socialAccounts = user.getSocialAccounts();
 		if (mediaPost.getMediaPlatform().contains("instagram")) {
 			if (socialAccounts == null || socialAccounts.getInstagramUser() == null) {
 				structure.setMessage("Please connect your Instagram account");
@@ -94,8 +101,7 @@ public class PostService {
 				return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure), HttpStatus.NOT_FOUND);
 			}
 			if (socialAccounts.getInstagramUser() != null)
-				return instagramService.postMediaToPage(mediaPost, mediaFile,
-						instagramUserDao.findById(socialAccounts.getInstagramUser().getInstaId()));
+				return instagramService.postMediaToPage(mediaPost, mediaFile, socialAccounts.getInstagramUser(), user);
 			else {
 				structure.setMessage("Please connect your Instagram account");
 				structure.setCode(HttpStatus.NOT_FOUND.value());
@@ -109,11 +115,10 @@ public class PostService {
 	}
 
 	public ResponseEntity<ResponseWrapper> postOnTelegram(MediaPost mediaPost, MultipartFile mediaFile,
-			SocialAccounts socialAccounts) {
-		System.out.println("Coming to PostService");
+			QuantumShareUser user) {
+		SocialAccounts socialAccounts=user.getSocialAccounts();
 		if (mediaPost.getMediaPlatform().contains("telegram")) {
 			if (socialAccounts == null || socialAccounts.getTelegramUser() == null) {
-				System.out.println("Entering to the if statement");
 				structure.setMessage("Please Connect Your Telegram Account");
 				structure.setCode(HttpStatus.NOT_FOUND.value());
 				structure.setPlatform("telegram");
@@ -122,9 +127,8 @@ public class PostService {
 				return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure), HttpStatus.NOT_FOUND);
 			}
 			if (socialAccounts.getTelegramUser() != null) {
-				System.out.println("Entering to the if statement if socialAccounts not equal to null");
 				return telegramService.postMediaToGroup(mediaPost, mediaFile,
-						telegramUserDao.findById(socialAccounts.getTelegramUser().getTelegramId()));
+						socialAccounts.getTelegramUser(),user);
 			} else {
 				structure.setMessage("Please Connect Your Telegram Account");
 				structure.setCode(HttpStatus.NOT_FOUND.value());
@@ -132,6 +136,24 @@ public class PostService {
 				structure.setStatus("error");
 				structure.setData(null);
 				return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure), HttpStatus.NOT_FOUND);
+			}
+		}
+		return null;
+	}
+
+	public ResponseEntity<ResponseWrapper> postOnTwitter(MediaPost mediaPost, MultipartFile mediaFile,
+			QuantumShareUser user) throws TwitterException {
+		SocialAccounts socialAccounts = user.getSocialAccounts();
+		if (mediaPost.getMediaPlatform().contains("twitter")) {
+			if (socialAccounts == null || socialAccounts.getTwitterUser() == null) {
+				structure.setMessage("Please connect your Twitter account");
+				structure.setCode(HttpStatus.NOT_FOUND.value());
+				structure.setPlatform("twitter");
+				structure.setStatus("error");
+				structure.setData(null);
+				return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure), HttpStatus.NOT_FOUND);
+			} else {
+				return twitterService.postOnTwitter(mediaPost, mediaFile, socialAccounts.getTwitterUser(), user);
 			}
 		}
 		return null;

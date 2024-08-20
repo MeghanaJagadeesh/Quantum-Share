@@ -28,7 +28,6 @@ public class GenerateId {
 	}
 
 	public String generateinstaId(String lastUserId) {
-		System.out.println("id generate method");
 		String userId;
 		if (lastUserId == null) {
 			userId = "QSINS2401";
@@ -40,19 +39,19 @@ public class GenerateId {
 		return userId;
 	}
 
-	public String generateuserId() {
-		String lastUserId = userDao.findLastUserId();
-		String userId;
-		if (lastUserId == null || lastUserId.isEmpty()) {
-			userId = "QSU2401";
-		} else {
-			int lastNumber = Integer.parseInt(lastUserId.substring(6));
-			int newNumber = lastNumber + 1;
-			userId = "QSU24" + String.format("%02d", newNumber);
-		}
-		System.out.println(userId);
-		return userId;
-	}
+//	public String generateuserId() {
+//		String lastUserId = userDao.findLastUserId();
+//		String userId;
+//		if (lastUserId == null || lastUserId.isEmpty()) {
+//			userId = "QSU2401";
+//		} else {
+//			int lastNumber = Integer.parseInt(lastUserId.substring(6));
+//			int newNumber = lastNumber + 1;
+//			userId = "QSU24" + String.format("%02d", newNumber);
+//		}
+//		System.out.println(userId);
+//		return userId;
+//	}
 
 //	int pagenum=1;
 //	public String generateFbPageId(String lastPageId) {

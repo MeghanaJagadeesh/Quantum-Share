@@ -11,20 +11,20 @@ public class FacebookUserDao {
 	@Autowired
 	FacebookUserRepository repository;
 
-	public String findLastUserId() {
-
-		FaceBookUser latestUser = repository.findTopByOrderByFbIdDesc();
-		if (latestUser != null) {
-			return latestUser.getFbId();
-		}
-		return null;
-	}
+//	public String findLastUserId() {
+//
+//		FaceBookUser latestUser = repository.findTopByOrderByFbIdDesc();
+//		if (latestUser != null) {
+//			return latestUser.getFbId();
+//		}
+//		return null;
+//	}
 
 	public void saveUser(FaceBookUser user) {
 		repository.save(user);
 	}
 
-	public FaceBookUser findById(String id) {
+	public FaceBookUser findById(int id) {
 		return repository.findById(id).orElse(null);
 	}
 

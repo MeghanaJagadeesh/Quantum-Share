@@ -35,7 +35,6 @@ public class CommonControllerSocialMedia {
 	// Fetching Group Details
 	@GetMapping("/telegram/user/groupDetails")
 	public ResponseEntity<ResponseStructure<String>> getGroupDetails() {
-		System.out.println("Telegram Invoked");
 		String token = request.getHeader("Authorization");
 		if (token == null || !token.startsWith("Bearer ")) {
 			structure.setCode(115);
@@ -46,7 +45,7 @@ public class CommonControllerSocialMedia {
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.UNAUTHORIZED);
 		}
 		String jwtToken = token.substring(7);
-		String userId = jwtUtilConfig.extractUserId(jwtToken);
+		int userId = jwtUtilConfig.extractUserId(jwtToken);
 		QuantumShareUser user = userDao.fetchUser(userId);
 		if (user == null) {
 			structure.setCode(HttpStatus.NOT_FOUND.value());

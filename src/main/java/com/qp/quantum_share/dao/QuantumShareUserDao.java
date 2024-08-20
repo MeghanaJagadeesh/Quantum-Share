@@ -18,7 +18,7 @@ public class QuantumShareUserDao {
 		userRespository.save(user);
 	}
 
-	public QuantumShareUser fetchUser(String userID) {
+	public QuantumShareUser fetchUser(int userID) {
 		return userRespository.findById(userID).get();
 	}
 
@@ -26,13 +26,13 @@ public class QuantumShareUserDao {
 		return userRespository.findByEmailOrPhoneNo(email, mobile);
 	}
 
-	public String findLastUserId() {
-		QuantumShareUser latestUser = userRespository.findTopByOrderByUserIdDesc();
-		if (latestUser != null) {
-			return latestUser.getUserId();
-		}
-		return null;
-	}
+//	public String findLastUserId() {
+//		QuantumShareUser latestUser = userRespository.findTopByOrderByUserIdDesc();
+//		if (latestUser != null) {
+//			return latestUser.getUserId();
+//		}
+//		return null;
+//	}
 
 	public void save(QuantumShareUser user) {
 		userRespository.save(user);

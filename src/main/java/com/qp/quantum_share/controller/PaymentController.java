@@ -32,7 +32,8 @@ public class PaymentController {
 	PaymentService paymentService;
 
 	@GetMapping("/subscription/create/payment")
-	public ResponseEntity<ResponseStructure<String>> getSubscription(@RequestParam int amount) {
+	public ResponseEntity<ResponseStructure<String>> getSubscription(@RequestParam double amount,
+			@RequestParam String packageName) {
 		String token = request.getHeader("Authorization");
 		if (token == null || !token.startsWith("Bearer ")) {
 			structure.setCode(115);
@@ -43,8 +44,8 @@ public class PaymentController {
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.UNAUTHORIZED);
 		}
 		String jwtToken = token.substring(7);
-		String userId = jwtUtilConfig.extractUserId(jwtToken);
-		return paymentService.subscription(amount, userId);
+		int userId = jwtUtilConfig.extractUserId(jwtToken);
+		return paymentService.subscription(amount, userId, packageName);
 	}
 
 	@PostMapping("/payment/callback/handle")
@@ -70,12 +71,7 @@ public class PaymentController {
 
 		}
 		String jwtToken = token.substring(7);
-		String userId = jwtUtilConfig.extractUserId(jwtToken);
-
-		System.out.println("razorpay_order_id  " + razorpay_order_id);
-		System.out.println("razorpay_payment_id  " + razorpay_payment_id);
-		System.out.println("razorpay_signature  " + razorpay_signature);
-
+		int userId = jwtUtilConfig.extractUserId(jwtToken);
 		return paymentService.handleCallbackPayment(amount, userId, razorpay_order_id, razorpay_payment_id,
 				razorpay_signature);
 	}

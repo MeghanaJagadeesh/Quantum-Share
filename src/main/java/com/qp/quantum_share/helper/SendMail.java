@@ -31,9 +31,9 @@ public class SendMail {
 //		String verificationLink = "http://localhost:7532/quantum-socialshare/user/verify?token="
 //				+ userDto.getVerificationToken();
 		try {
-			helper.setFrom("prathyusha10032001@gmail.com", "QuantumShare");
+			helper.setFrom("quantumshare12@gmail.com", "QuantumShare");
 			helper.setTo(userDto.getEmail());
-			helper.setSubject("Verify Email");
+			helper.setSubject("Welcome to Quantumshare, Please verify your email address");
 			String htmlBody = readHtmlTemplate("verification_email_template.html");
 			htmlBody = htmlBody.replace("{{USERNAME}}", userDto.getFirstName() + " " + userDto.getLastName());
 			htmlBody = htmlBody.replace("{{VERIFICATION_LINK}}", verificationLink);

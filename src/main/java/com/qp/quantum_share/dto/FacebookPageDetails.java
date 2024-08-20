@@ -15,6 +15,9 @@ public class FacebookPageDetails {
 	private int pageTableId;
 	private String fbPageId;
 	private String pageName;
+	
+	@Column(length = 2000)
+	private String pictureUrl;
 
 	@Column(length = 2000)
 	private String fbPageAceessToken;
