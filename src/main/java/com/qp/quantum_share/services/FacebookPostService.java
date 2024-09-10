@@ -75,6 +75,9 @@ public class FacebookPostService {
 	@Autowired
 	RestTemplate restTemplate;
 
+	@Autowired
+	SocialMediaLogoutService mediaLogoutService;
+
 	private static final long MAX_FILE_SIZE = 60 * 1024 * 1024;
 
 	public boolean postToPage(String pageId, String pageAccessToken, String message) {
@@ -114,6 +117,7 @@ public class FacebookPostService {
 				FacebookType response;
 				if (isVideo(mediaFile)) {
 					if (mediaFile.getSize() <= MAX_FILE_SIZE) {
+//					if (false) {
 						ResponseEntity<JsonNode> res = postVideo(facebookPageId, pageAccessToken, mediaFile,
 								mediaPost.getCaption());
 						if (res.getStatusCode().is2xxSuccessful()) {
@@ -154,8 +158,8 @@ public class FacebookPostService {
 							qsuser.setCredit(qsuser.getCredit() - 1);
 							userDao.save(qsuser);
 							System.out.println();
-//							analyticsPostService.savePost(response.getId(), facebookPageId, qsuser, mediaFile.getContentType(), "facebook",
-//									pagename);
+							analyticsPostService.savePost(finalResponse.getId(), facebookPageId, qsuser,
+									mediaFile.getContentType(), "facebook", pageName);
 							SuccessResponse succesresponse = config.getSuccessResponse();
 							succesresponse.setCode(HttpStatus.OK.value());
 							succesresponse.setMessage("Posted On " + pageName + " FaceBook Page");
@@ -208,6 +212,16 @@ public class FacebookPostService {
 			return new ResponseEntity<List<Object>>(mainresponse, HttpStatus.OK);
 
 		} catch (FacebookException e) {
+			if (e.getMessage().contains("Error validating access token: Session has expired")) {
+				mediaLogoutService.disconnectFacebook(qsuser);
+				structure.setCode(118);
+				structure.setMessage("Access Expiry!! Please Connect your Instagram profile");
+				structure.setPlatform("instagram");
+				structure.setStatus("error");
+				structure.setData(e.getMessage());
+				mainresponse.add(structure);
+				return new ResponseEntity<List<Object>>(mainresponse, HttpStatus.OK);
+			}
 			throw new FBException(e.getMessage(), "facebook");
 		} catch (IllegalArgumentException e) {
 			throw new CommonException(e.getMessage());
@@ -230,19 +244,26 @@ public class FacebookPostService {
 			headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 			headers.setBearerAuth(pageAccessToken);
 			body.add("file", mediaFile.getResource());
+			System.out.println(mediaFile.getResource());
+			if (mediaFile.isEmpty()) {
+				throw new IllegalArgumentException("File is empty.");
+			}
+			System.out.println(mediaFile.getContentType());
+			System.out.println(mediaFile.getInputStream().toString());
 			body.add("description", message);
 			HttpEntity<MultiValueMap<String, Object>> requestEntity = config.getHttpEntityWithMap(body, headers);
+			System.out.println(requestEntity);
 			ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.POST, requestEntity,
 					JsonNode.class);
-			System.out.println(response);
+			System.out.println("response " + response.getBody());
 			return response;
 		} catch (Exception e) {
+			e.printStackTrace();
 			throw new CommonException(e.getMessage());
 		}
 
 	}
 
-	// post video
 	public String createVideoUploadSession(FacebookClient client, String pageId, long fileSize) {
 		ResumableUploadStartResponse response = client.publish(pageId + "/videos", ResumableUploadStartResponse.class,
 				Parameter.with("upload_phase", "start"), Parameter.with("file_size", fileSize));

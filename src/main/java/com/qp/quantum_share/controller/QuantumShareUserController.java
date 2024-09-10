@@ -88,7 +88,6 @@ public class QuantumShareUserController {
 			structure.setPlatform(null);
 			structure.setData(null);
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.UNAUTHORIZED);
-
 		}
 		String token = request.getHeader("Authorization");
 		if (token == null || !token.startsWith("Bearer ")) {
@@ -178,6 +177,22 @@ public class QuantumShareUserController {
 		String jwtToken = token.substring(7); // remove "Bearer " prefix
 		int userId = jwtUtilConfig.extractUserId(jwtToken);
 		return quantumShareUserService.fetchConnectedTelegram(userId);
+	}
+	
+	@GetMapping("/connected/socialmedia/linkedIn")
+	public ResponseEntity<ResponseStructure<String>> fetchConnectedLinkedIn() {
+		String token = request.getHeader("Authorization");
+		if (token == null || !token.startsWith("Bearer ")) {
+			structure.setCode(115);
+			structure.setMessage("Missing or invalid authorization token");
+			structure.setStatus("error");
+			structure.setPlatform(null);
+			structure.setData(null);
+			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.UNAUTHORIZED);
+		}
+		String jwtToken = token.substring(7); // remove "Bearer " prefix
+		int userId = jwtUtilConfig.extractUserId(jwtToken);
+		return quantumShareUserService.fetchLinkedIn(userId);
 	}
 	
 	@GetMapping("/info")

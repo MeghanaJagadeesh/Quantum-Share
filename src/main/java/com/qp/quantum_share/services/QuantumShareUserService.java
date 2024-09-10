@@ -18,6 +18,8 @@ import com.qp.quantum_share.dao.QuantumShareUserDao;
 import com.qp.quantum_share.dto.FaceBookUser;
 import com.qp.quantum_share.dto.FacebookPageDetails;
 import com.qp.quantum_share.dto.InstagramUser;
+import com.qp.quantum_share.dto.LinkedInPageDto;
+import com.qp.quantum_share.dto.LinkedInProfileDto;
 import com.qp.quantum_share.dto.QuantumShareUser;
 import com.qp.quantum_share.dto.SocialAccounts;
 import com.qp.quantum_share.dto.SubscriptionDetails;
@@ -78,6 +80,7 @@ public class QuantumShareUserService {
 			QuantumShareUser user = users.get(0);
 			if (SecurePassword.decrypt(user.getPassword(), "123").equals(password)) {
 				if (user.isVerified()) {
+					applyCredit(user);
 					String tokenValue = token.generateJWT(user);
 					structure.setCode(HttpStatus.OK.value());
 					structure.setMessage("Login Successful");
@@ -104,6 +107,10 @@ public class QuantumShareUserService {
 				return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_ACCEPTABLE);
 			}
 		}
+	}
+
+	private void applyCredit(QuantumShareUser user) {
+		
 	}
 
 	public ResponseEntity<ResponseStructure<String>> userSignUp(QuantumShareUser user) {
@@ -257,7 +264,7 @@ public class QuantumShareUserService {
 		}
 		SocialAccounts accounts = user.getSocialAccounts();
 		if (accounts == null || accounts.getFacebookUser() == null) {
-			structure.setCode(114);
+			structure.setCode(119);
 			structure.setMessage("user has not connected any social media platforms");
 			structure.setPlatform(null);
 			structure.setStatus("error");
@@ -302,7 +309,7 @@ public class QuantumShareUserService {
 		}
 		SocialAccounts accounts = user.getSocialAccounts();
 		if (accounts == null || accounts.getInstagramUser() == null) {
-			structure.setCode(114);
+			structure.setCode(119);
 			structure.setMessage("user has not connected any social media platforms");
 			structure.setPlatform(null);
 			structure.setStatus("error");
@@ -345,7 +352,7 @@ public class QuantumShareUserService {
 		}
 		SocialAccounts accounts = user.getSocialAccounts();
 		if (accounts == null || accounts.getTelegramUser() == null) {
-			structure.setCode(114);
+			structure.setCode(119);
 			structure.setMessage("user has not connected any social media platforms");
 			structure.setPlatform(null);
 			structure.setStatus("error");
@@ -397,6 +404,62 @@ public class QuantumShareUserService {
 		structure.setMessage(null);
 		structure.setStatus("success");
 		structure.setPlatform(null);
+		return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
+
+	}
+
+	public ResponseEntity<ResponseStructure<String>> fetchLinkedIn(int userId) {
+		QuantumShareUser user = userDao.fetchUser(userId);
+		if (user == null) {
+			structure.setCode(HttpStatus.NOT_FOUND.value());
+			structure.setMessage("user doesn't exists, please login");
+			structure.setStatus("error");
+			structure.setData(null);
+			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
+		}
+		SocialAccounts accounts = user.getSocialAccounts();
+		if (accounts == null || accounts.getLinkedInProfileDto() == null) {
+			structure.setCode(119);
+			structure.setMessage("user has not LinkedIn platforms");
+			structure.setPlatform(null);
+			structure.setStatus("error");
+			structure.setData(null);
+			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
+		}
+		LinkedInProfileDto linkedInUser = accounts.getLinkedInProfileDto();
+		Map<String, Object> data = configure.getMap();
+		Map<String, Object> linkedIn = configure.getMap();
+		data.clear();
+		linkedIn.clear();
+		String imageUrl=null;
+		if (linkedInUser.getLinkedinProfileURN() != null) {
+			if (linkedInUser.getLinkedinProfileImage() == null) {
+				imageUrl = "https://quantumshare.quantumparadigm.in/vedio/ProfilePicture.jpg";
+			} else {
+				imageUrl = linkedInUser.getLinkedinProfileImage();
+			}
+			linkedIn.put("linkedInProfilePic", imageUrl);
+			linkedIn.put("linkedInUserName", linkedInUser.getLinkedinProfileUserName());
+			data.put("linkedIn", linkedIn);
+		} else if (linkedInUser.getPages().get(0).getLinkedinPageURN() != null) {
+			LinkedInPageDto linkedInPage = linkedInUser.getPages().get(0);
+			if (linkedInPage.getLinkedinPageImage() == null) {				
+				imageUrl = "https://quantumshare.quantumparadigm.in/vedio/ProfilePicture.jpg";
+			} else {
+				imageUrl = linkedInPage.getLinkedinPageImage();
+			}
+			System.out.println(imageUrl);
+			linkedIn.put("linkedInProfilePic", imageUrl);
+			linkedIn.put("linkedInUserName", linkedInPage.getLinkedinPageName());
+			linkedIn.put("linkedInFollowersCount", linkedInPage.getLinkedinPageFollowers());
+			data.put("linkedIn", linkedIn);
+		}
+
+		structure.setData(data);
+		structure.setCode(HttpStatus.OK.value());
+		structure.setMessage(null);
+		structure.setStatus("success");
+		structure.setPlatform("linkedIn");
 		return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
 
 	}

@@ -6,7 +6,6 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.qp.quantum_share.dto.QuantumShareUser;
 import com.qp.quantum_share.dto.SocialMediaPosts;
 import com.qp.quantum_share.repository.PostsRepository;
 import com.qp.quantum_share.repository.SocialMediaPostRepository;

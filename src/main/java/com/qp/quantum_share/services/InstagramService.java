@@ -89,7 +89,11 @@ public class InstagramService {
 	@Autowired
 	AnalyticsPostService analyticsPostService;
 
+	@Autowired
+	SocialMediaLogoutService mediaLogoutService;
+
 	public ResponseEntity<ResponseWrapper> postMediaToPage(MediaPost mediaPost, MultipartFile mediaFile,
+
 			InstagramUser instagramUser, QuantumShareUser user) {
 		String accessToken = instagramUser.getInstUserAccessToken();
 		String fileUrl = uploadFileToServer.uploadFile(mediaFile);
@@ -195,9 +199,20 @@ public class InstagramService {
 						HttpStatus.INTERNAL_SERVER_ERROR);
 
 			}
-		} catch (FacebookException e) {
+		} 
+		catch (FacebookException e) {
+			if (e.getMessage().contains("Error validating access token: Session has expired")) {
+//				mediaLogoutService.disconnectInstagram(user);
+				structure.setCode(118);
+				structure.setMessage("Access Expiry!! Please Connect your Instagram profile");
+				structure.setPlatform("instagram");
+				structure.setStatus("error");
+				structure.setData(e.getMessage());
+				return new ResponseEntity<ResponseWrapper>(configuration.getResponseWrapper(structure), HttpStatus.OK);
+			}
 			throw new FBException(e.getMessage(), "instagram");
-		} catch (IllegalArgumentException e) {
+		}
+		catch (IllegalArgumentException e) {
 			throw new IllegalArgumentException(e.getMessage());
 		} catch (NullPointerException e) {
 			throw new NullPointerException(e.getMessage());
@@ -245,6 +260,15 @@ public class InstagramService {
 						HttpStatus.INTERNAL_SERVER_ERROR);
 			}
 		} catch (FacebookException e) {
+			if (e.getMessage().contains("Error validating access token: Session has expired")) {
+//				mediaLogoutService.disconnectInstagram(user);
+				structure.setCode(118);
+				structure.setMessage("Access Expiry!! Please Connect your Instagram profile");
+				structure.setPlatform("instagram");
+				structure.setStatus("error");
+				structure.setData(e.getMessage());
+				return new ResponseEntity<ResponseWrapper>(configuration.getResponseWrapper(structure), HttpStatus.OK);
+			}
 			throw new FBException(e.getMessage(), "instagram");
 		} catch (IllegalArgumentException e) {
 			throw new IllegalArgumentException(e.getMessage());

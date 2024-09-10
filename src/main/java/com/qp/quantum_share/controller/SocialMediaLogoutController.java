@@ -107,4 +107,27 @@ public class SocialMediaLogoutController {
 		return logoutService.disconnectTelegram(user);
 	}
 
+	@GetMapping("/disconnect/linkedin")
+	public ResponseEntity<ResponseStructure<String>> disconnectLinkedIn() {
+		String token = request.getHeader("Authorization");
+		if (token == null || !token.startsWith("Bearer ")) {
+			structure.setCode(115);
+			structure.setMessage("Missing or invalid authorization token");
+			structure.setStatus("error");
+			structure.setPlatform(null);
+			structure.setData(null);
+			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.UNAUTHORIZED);
+		}
+		String jwtToken = token.substring(7); // remove "Bearer " prefix
+		Integer userId = jwtUtilConfig.extractUserId(jwtToken);
+		QuantumShareUser user = userDao.fetchUser(userId);
+		if (user == null) {
+			structure.setCode(HttpStatus.NOT_FOUND.value());
+			structure.setMessage("user doesn't exists, please signup");
+			structure.setStatus("error");
+			structure.setData(null);
+			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
+		}
+		return logoutService.disconnectLinkedIn(user);
+	}
 }

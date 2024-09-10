@@ -177,4 +177,10 @@ public class ConfigurationClass {
 	public SocialMediaPosts getsocialMediaPosts() {
 		return new SocialMediaPosts();
 	}
+	
+	@Bean
+	@Lazy
+	public HttpEntity<byte[]> getByteHttpEntity(byte[] byteArray, HttpHeaders headers) {
+		return new HttpEntity<>(byteArray, headers);
+	}
 }

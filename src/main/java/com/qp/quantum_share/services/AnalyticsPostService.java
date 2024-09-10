@@ -185,7 +185,6 @@ public class AnalyticsPostService {
 
 	public ResponseEntity<ResponseStructure<String>> viewAnalytics(QuantumShareUser user, String pid) {
 		try {
-			System.err.println("service");
 			SocialMediaPosts post = postsDao.getPost(Integer.parseInt(pid));
 			System.out.println(post);
 			if (post == null) {
@@ -233,7 +232,7 @@ public class AnalyticsPostService {
 				return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
 			}
 			String url = "https://graph.facebook.com/v20.0/" + post.getPostid()
-					+ "/video_insights?metric=total_video_views,total_video_impressions,total_video_reactions_by_type_total&access_token="
+					+ "/insights?metric=total_video_views,total_video_impressions,total_video_reactions_by_type_total&access_token="
 					+ page.getFbPageAceessToken();
 			headers.setBearerAuth(page.getFbPageAceessToken());
 			HttpEntity<String> entity = config.getHttpEntity(headers);
@@ -247,9 +246,9 @@ public class AnalyticsPostService {
 				insights.put(name, value);
 			}
 			ResponseEntity<JsonNode> response1 = restTemplate.exchange(
-					"https://graph.facebook.com/v20.0/" + post.getPostid() + "?fields=description", HttpMethod.GET,
-					entity, JsonNode.class);
-			String description = response1.getBody().get("description").asText();
+					"https://graph.facebook.com/v20.0/" + post.getPostid() + "?fields=message", HttpMethod.GET, entity,
+					JsonNode.class);
+			String description = response1.getBody().has("message") ? response1.getBody().get("message").asText() : null;
 			insights.put("description", description);
 			insights.put("full_picture", post.getImageUrl());
 			insights.put("media_type", post.getMediaType());
@@ -381,14 +380,15 @@ public class AnalyticsPostService {
 			ResponseEntity<JsonNode> response1 = restTemplate.exchange(
 					"https://graph.facebook.com/" + post.getPostid() + "?fields=caption", HttpMethod.GET, entity,
 					JsonNode.class);
-			insights.put("description", response1.getBody().get("caption").asText());
+			insights.put("description",
+					response1.getBody().has("caption") ? response1.getBody().get("caption").asText() : null);
 			insights.put("full_picture", post.getImageUrl());
 			insights.put("media_type", post.getMediaType());
 
 			structure.setCode(HttpStatus.OK.value());
 			structure.setData(insights);
 			structure.setMessage("Instagram Post analytics");
-			structure.setPlatform("Instagram");
+			structure.setPlatform("instagram");
 			structure.setStatus("success");
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
 
@@ -404,7 +404,7 @@ public class AnalyticsPostService {
 				postsDao.deletePosts(post);
 				structure.setCode(117);
 				structure.setMessage("This Post is not available in Instagram Profile");
-				structure.setPlatform("facebook");
+				structure.setPlatform("instagram");
 				structure.setStatus("error");
 				structure.setData(null);
 				return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);

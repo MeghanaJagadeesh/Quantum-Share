@@ -16,4 +16,8 @@ public class SocialAccountDao {
 		accountsRepository.save(accounts);
 	}
 
+	public void deleteSocialAccount(SocialAccounts socialAccounts) {
+		accountsRepository.delete(socialAccounts);
+
+	}
 }
