@@ -51,8 +51,8 @@ public class FacebookAccessTokenService {
 	@Autowired
 	ConfigurationClass configuration;
 
-	@Autowired
-	ResponseStructure<String> structure;
+//	@Autowired
+//	ResponseStructure<String> structure;
 
 	@Autowired
 	SocialAccounts socialAccounts;
@@ -63,23 +63,27 @@ public class FacebookAccessTokenService {
 	@Autowired
 	QuantumShareUserDao userDao;
 
-	public ResponseEntity<ResponseStructure<String>> verifyToken(String access_Token, QuantumShareUser user) {
+	public ResponseEntity<ResponseStructure<String>> verifyToken(String access_Token, QuantumShareUser user,int userId) {
+		System.out.println("*****************2********************");
 		String responseUser = fetchUser(access_Token);
+		System.out.println(responseUser);
 		String responsePage = fetchUserPages(access_Token);
-		return saveUser(responseUser, responsePage, access_Token, user);
+		System.out.println(responsePage);
+		return saveUser(responseUser, responsePage, access_Token, user,userId);
 	}
 
 	public ResponseEntity<ResponseStructure<String>> saveUser(String fbUser, String userPage, String acceToken,
-			QuantumShareUser user) {
+			QuantumShareUser user,int userId) {
+		System.out.println("*****************3********************");
 		Map<String, Object> pageProfile = configuration.getMap();
+		System.out.println("Pageprofile"+pageProfile);
 		pageProfile.clear();
+		System.out.println("Pageprofile"+pageProfile);
 		try {
 			if (fbUser != null) {
 				JsonNode fbuser = objectMapper.readTree(fbUser);
-				System.out.println("fb "+fbUser);
-				FaceBookUser savedUser = null;
+				FaceBookUser savedUser = new FaceBookUser();
 				if (user.getSocialAccounts() == null) {
-					savedUser = faceBookUser;
 					savedUser.setFbuserId(fbuser.has("id") ? fbuser.get("id").asText() : null);
 					savedUser.setFbuserUsername(fbuser.has("name") ? fbuser.get("name").asText() : null);
 					savedUser.setUserAccessToken(acceToken);
@@ -90,11 +94,11 @@ public class FacebookAccessTokenService {
 					String pictureUrl = fbuser.has("picture") ? fbuser.get("picture").get("data").get("url").asText()
 							: null;
 					savedUser.setPictureUrl(pictureUrl);
+					SocialAccounts socialAccounts=new SocialAccounts();
 					socialAccounts.setFacebookUser(savedUser);
 					user.setSocialAccounts(socialAccounts);
 					userDao.save(user);
 				} else if (user.getSocialAccounts().getFacebookUser() == null) {
-					savedUser = faceBookUser;
 					savedUser.setFbuserId(fbuser.has("id") ? fbuser.get("id").asText() : null);
 					savedUser.setFbuserUsername(fbuser.has("name") ? fbuser.get("name").asText() : null);
 					savedUser.setUserAccessToken(acceToken);
@@ -137,9 +141,9 @@ public class FacebookAccessTokenService {
 
 					if (data != null && data.isArray()) {
 						int numberOfPages = data.size();
-
+						
 						for (JsonNode page : data) {
-							FacebookPageDetails pages = configuration.pageDetails();
+							FacebookPageDetails pages = new FacebookPageDetails();
 							pages.setFbPageId(page.has("id") ? page.get("id").asText() : null);
 							pages.setPageName(page.get("name") != null ? page.get("name").asText() : null);
 							pages.setFbPageAceessToken(
@@ -167,25 +171,31 @@ public class FacebookAccessTokenService {
 				}
 //				facebookDao.saveUser(faceBookUser);
 //				accountDao.save(socialAccounts);
-				userDao.save(user);
+//				userDao.save(user);
+				ResponseStructure<String> structure = new ResponseStructure<String>();
 				structure.setCode(HttpStatus.CREATED.value());
 				structure.setMessage("Facebook Connected Successfully");
 				structure.setStatus("success");
 				structure.setPlatform("facebook");
 				Map<String, Object> data = configuration.getMap();
+				System.out.println(data);
 				data.clear();
+				System.out.println(data);
 				FaceBookUser datauser = user.getSocialAccounts().getFacebookUser();
 				data.put("facebookUrl", datauser.getPictureUrl());
 				data.put("facebookUsername", datauser.getFbuserUsername());
 				data.put("facebookNumberofpages", datauser.getNoOfFbPages());
 				data.put("pages_url", pageProfile);
+				data.put("user_id", userId);
 				structure.setData(data);
 				return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.CREATED);
 			} else {
+				ResponseStructure<String> structure = new ResponseStructure<String>();
 				structure.setCode(HttpStatus.NOT_FOUND.value());
 				structure.setMessage("unable to find the user");
 				structure.setStatus("error");
 				structure.setData(null);
+				structure.setPlatform(null);
 				return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
 			}
 		} catch (JsonProcessingException e) {

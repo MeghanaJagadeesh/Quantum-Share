@@ -1,4 +1,5 @@
 package com.qp.quantum_share.services;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -24,6 +25,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.qp.quantum_share.configuration.ConfigurationClass;
 import com.qp.quantum_share.dao.QuantumShareUserDao;
+import com.qp.quantum_share.dto.CreditSystem;
 import com.qp.quantum_share.dto.MediaPost;
 import com.qp.quantum_share.dto.QuantumShareUser;
 import com.qp.quantum_share.dto.SocialAccounts;
@@ -49,26 +51,20 @@ public class YoutubeService {
 	@Value("${youtube.token-uri}")
 	private String tokenUri;
 
-	@Value("${youtube.channel-details-uri}")
-	private String channelDetailsUri;
-
-	@Value("${youtube.auth-uri}")
-	private String authUri;
-
 	@Value("${youtube.scope}")
 	private String scope;
 
 	@Autowired
 	QuantumShareUserDao userDao;
 
-	@Autowired
-	ResponseStructure<String> structure;
+//	@Autowired
+//	ResponseStructure<String> structure;
 
-	@Autowired
-	SuccessResponse successResponse;
-
-	@Autowired
-	ErrorResponse errorResponse;
+//	@Autowired
+//	SuccessResponse successResponse;
+//
+//	@Autowired
+//	ErrorResponse errorResponse;
 
 	@Autowired
 	HttpHeaders headers;
@@ -101,7 +97,7 @@ public class YoutubeService {
 		String authUri = "https://accounts.google.com/o/oauth2/v2/auth";
 		String ouath = authUri + "?response_type=code&client_id=" + clientId + "&redirect_uri=" + redirectUri
 				+ "&scope=" + scope + "&access_type=" + "offline" + "&prompt=" + "consent";
-		System.out.println(ouath);
+		ResponseStructure<String> structure = new ResponseStructure<String>();
 		structure.setCode(HttpStatus.OK.value());
 		structure.setStatus("success");
 		structure.setMessage("oauth_url generated successfully");
@@ -110,10 +106,9 @@ public class YoutubeService {
 		return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
 	}
 
-	public ResponseEntity<ResponseStructure<String>> verifyToken(String code, QuantumShareUser user) {
+	public ResponseEntity<ResponseStructure<String>> verifyToken(String code, QuantumShareUser user, int userId) {
 		try {
 			headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
 			multiValueMap.add("code", code);
 			multiValueMap.add("client_id", clientId);
 			multiValueMap.add("client_secret", clientSecret);
@@ -128,11 +123,12 @@ public class YoutubeService {
 				if (responseBody != null && responseBody.has("access_token")) {
 					String accessToken = responseBody.get("access_token").asText();
 					String youtubeUserDetails = getChannelDetails(accessToken);
-					return saveYoutubeUser(youtubeUserDetails, user, accessToken);
+					return saveYoutubeUser(youtubeUserDetails, user, accessToken, userId);
 				} else {
 					throw new CommonException("Access token not found in response");
 				}
 			} else {
+				ResponseStructure<String> structure = new ResponseStructure<String>();
 				structure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 				structure.setData(null);
 				structure.setMessage("Something went wrong!!");
@@ -165,23 +161,26 @@ public class YoutubeService {
 	}
 
 	private ResponseEntity<ResponseStructure<String>> saveYoutubeUser(String youtubeUserDetails, QuantumShareUser user,
-			String accessToken) {
+			String accessToken, int userId) {
 		try {
 			JsonNode rootNode = objectMapper.readTree(youtubeUserDetails);
 			SocialAccounts accounts = user.getSocialAccounts();
 			if (accounts == null) {
 				JsonNode itemsNode = rootNode.path("items").get(0);
 				JsonNode snippetNode = itemsNode.path("snippet");
+				YoutubeUser youtubeUser = new YoutubeUser();
 				youtubeUser.setYoutubeUserAccessToken(accessToken);
 				youtubeUser.setYoutubeChannelId(itemsNode.path("id").asText());
 				youtubeUser.setChannelName(snippetNode.path("title").asText());
 				youtubeUser.setSubscriberCount(itemsNode.path("statistics").path("subscriberCount").asInt());
 				youtubeUser.setChannelImageUrl(snippetNode.path("thumbnails").path("default").path("url").asText());
+				SocialAccounts socialAccounts = new SocialAccounts();
 				socialAccounts.setYoutubeUser(youtubeUser);
 				user.setSocialAccounts(socialAccounts);
 			} else if (accounts.getYoutubeUser() == null) {
 				JsonNode itemsNode = rootNode.path("items").get(0);
 				JsonNode snippetNode = itemsNode.path("snippet");
+				YoutubeUser youtubeUser = new YoutubeUser();
 				youtubeUser.setYoutubeUserAccessToken(accessToken);
 				youtubeUser.setYoutubeChannelId(itemsNode.path("id").asText());
 				youtubeUser.setChannelName(snippetNode.path("title").asText());
@@ -202,6 +201,7 @@ public class YoutubeService {
 				user.setSocialAccounts(accounts);
 			}
 			userDao.save(user);
+			ResponseStructure<String> structure = new ResponseStructure<String>();
 			structure.setCode(HttpStatus.OK.value());
 			structure.setStatus("success");
 			structure.setMessage("Youtube Connected Successfully");
@@ -212,6 +212,7 @@ public class YoutubeService {
 			map.put("youtubeChannelName", yUser.getChannelName());
 			map.put("youtubeSubscriberCount", yUser.getSubscriberCount());
 			map.put("youtubeUrl", yUser.getChannelImageUrl());
+			map.put("user_id", userId);
 			structure.setData(map);
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
 		} catch (NullPointerException e) {
@@ -225,9 +226,12 @@ public class YoutubeService {
 
 	// Media Posting
 	public ResponseEntity<ResponseWrapper> postMediaToChannel(MediaPost mediaPost, MultipartFile mediaFile,
-			YoutubeUser user) {
-		System.out.println("Coming to Youtube Service");
-		if (user == null) {
+			YoutubeUser user, int userId) {
+		ResponseStructure<String> structure = new ResponseStructure<String>();
+		SuccessResponse successResponse = new SuccessResponse();
+		ErrorResponse errorResponse = new ErrorResponse();
+		try {
+			if (user == null) {
 			structure.setMessage("Youtube user not found");
 			structure.setCode(HttpStatus.NOT_FOUND.value());
 			structure.setPlatform("youtube");
@@ -237,10 +241,22 @@ public class YoutubeService {
 		}
 		String youtubeChannelId = user.getYoutubeChannelId();
 		String contentType = mediaFile.getContentType();
-		try {
+		
 			if (contentType != null && contentType.startsWith("video/")) {
-				System.out.println("Send video to Channel");
-				sendVideoToChannel(youtubeChannelId, mediaFile, mediaPost.getTitle(), mediaPost.getCaption());
+				if (sendVideoToChannel(youtubeChannelId, mediaFile, mediaPost.getTitle(), mediaPost.getCaption())) {
+					QuantumShareUser qsuser = userDao.fetchUser(userId);
+					CreditSystem credits = qsuser.getCreditSystem();
+					credits.setRemainingCredit(credits.getRemainingCredit()-1);
+					qsuser.setCreditSystem(credits);
+					userDao.save(qsuser);
+					successResponse.setMessage("Posted On Youtube");
+					successResponse.setCode(HttpStatus.OK.value());
+					successResponse.setPlatform("youtube");
+					successResponse.setStatus("success");
+					successResponse.setData(null);
+					return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(successResponse),
+							HttpStatus.OK);
+				}
 			} else {
 				structure.setMessage("Youtube:Unsupported media type");
 				structure.setCode(HttpStatus.BAD_REQUEST.value());
@@ -250,12 +266,6 @@ public class YoutubeService {
 				return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure),
 						HttpStatus.BAD_REQUEST);
 			}
-			successResponse.setMessage("Posted On Youtube");
-			successResponse.setCode(HttpStatus.OK.value());
-			successResponse.setPlatform("youtube");
-			successResponse.setStatus("success");
-			successResponse.setData(null);
-			return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(successResponse), HttpStatus.OK);
 		} catch (Exception e) {
 			errorResponse.setMessage("Failed to send media: " + e.getMessage());
 			errorResponse.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
@@ -265,38 +275,44 @@ public class YoutubeService {
 			return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(errorResponse),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
+		return null;
 	}
 
-	public void sendVideoToChannel(String youtubeChannelId, MultipartFile mediaFile, String title, String caption)
+	public boolean sendVideoToChannel(String youtubeChannelId, MultipartFile mediaFile, String title, String caption)
 			throws IOException {
-		System.out.println("Coming to sendVideoToChannel method");
+		try {
+			System.out.println(mediaFile.getContentType()+" "+mediaFile.getOriginalFilename());
+			String uploadUrl = "https://www.googleapis.com/upload/youtube/v3/videos?part=snippet";
 
-		String uploadUrl = "https://www.googleapis.com/upload/youtube/v3/videos?part=snippet";
+			headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+			
+			String snippetJson = "{\"snippet\": {" + "\"channelId\": \"" + youtubeChannelId + "\"," + "\"title\": \""
+					+ title + "\"," + "\"description\": \"" + caption + "\"" + "}}";
+			System.out.println(snippetJson);
+			MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+			body.add("snippet", new ByteArrayResource(snippetJson.getBytes(StandardCharsets.UTF_8)) {
+				@Override
+				public String getFilename() {
+					return "snippet.json";
+				}
+			});
+			body.add("file", byteArrayResourceFactory.createByteArrayResource(mediaFile.getBytes(),
+					mediaFile.getOriginalFilename()));
 
-		headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+			HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+			ResponseEntity<String> response = restTemplate.exchange(uploadUrl, HttpMethod.POST, requestEntity,
+					String.class);
 
-		String snippetJson = "{\"snippet\": {" + "\"channelId\": \"" + youtubeChannelId + "\"," + "\"title\": \""
-				+ title + "\"," + "\"description\": \"" + caption + "\"" + "}}";
-
-		MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-		body.add("snippet", new ByteArrayResource(snippetJson.getBytes(StandardCharsets.UTF_8)) {
-			@Override
-			public String getFilename() {
-				return "snippet.json";
+			if (response.getStatusCode() == HttpStatus.OK) {
+				return true;
+			} else {
+				return false;
 			}
-		});
-		body.add("file", byteArrayResourceFactory.createByteArrayResource(mediaFile.getBytes(),
-				mediaFile.getOriginalFilename()));
 
-		HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
-		ResponseEntity<String> response = restTemplate.exchange(uploadUrl, HttpMethod.POST, requestEntity,
-				String.class);
-
-		if (response.getStatusCode() == HttpStatus.OK) {
-			System.out.println("Video sent successfully!");
-		} else {
-			System.err.println("Failed to send video. Status code: " + response.getStatusCode());
-			System.err.println("Response body: " + response.getBody());
+		} catch (Exception e) {
+			System.out.println("youtube");
+			e.printStackTrace();
+			throw new CommonException(e.getMessage());
 		}
 	}
 

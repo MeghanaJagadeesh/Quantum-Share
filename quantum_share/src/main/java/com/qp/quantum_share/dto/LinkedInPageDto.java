@@ -9,11 +9,13 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import lombok.Data;
 
 @Entity
 @Data
 @Component
+@Table(name = "linkedinpage")
 public class LinkedInPageDto {
 
 	@Id
@@ -28,8 +30,5 @@ public class LinkedInPageDto {
     @Column(length = 1000)
     private String linkedinPageAccessToken;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "profile_Uid")
-    private LinkedInProfileDto profile;
 }
  

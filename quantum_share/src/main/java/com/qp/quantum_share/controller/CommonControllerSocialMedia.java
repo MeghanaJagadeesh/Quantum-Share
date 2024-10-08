@@ -54,7 +54,7 @@ public class CommonControllerSocialMedia {
 			structure.setData(null);
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
 		}
-		return telegramService.pollTelegramUpdates(user);
+		return telegramService.pollTelegramUpdates(user,userId);
 	}
 
 }

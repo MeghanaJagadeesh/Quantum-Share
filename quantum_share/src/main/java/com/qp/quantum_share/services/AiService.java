@@ -41,8 +41,8 @@ public class AiService {
 	@Value("${stability.api.token}")
 	private String apiToken;
 
-	@Autowired
-	ResponseStructure<String> responseStructure;
+//	@Autowired
+//	ResponseStructure<String> responseStructure;
 
 	@Autowired
 	ResponseStructure<byte[]> responsedStructure;
@@ -106,6 +106,7 @@ public class AiService {
 
 	// METHOD TO GENERATE CHAT [GEMINI API]
 	public ResponseStructure<String> generateContent(String userQuestion) {
+		ResponseStructure<String> responseStructure = new ResponseStructure<String>();
 
 		try {
 			// Your existing logic to generate content
@@ -141,40 +142,45 @@ public class AiService {
 			responseStructure.setMessage("Content generated successfully");
 			responseStructure.setCode(HttpStatus.OK.value());
 			responseStructure.setData(text);
+			responseStructure.setPlatform(null);
 		} catch (Exception e) {
 			responseStructure.setStatus("Error");
 			responseStructure.setMessage("Failed to generate content. Internal server error.");
 			responseStructure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			responseStructure.setData(null);
+			responseStructure.setPlatform(null);
 		}
 
 		return responseStructure;
 	}
 
 	public ResponseStructure<String> handleEmptyOrNullRequest() {
-
+		ResponseStructure<String> responseStructure = new ResponseStructure<String>();
 		responseStructure.setStatus("Error");
 		responseStructure.setMessage("Request parameter 'userMessage' is empty or null");
 		responseStructure.setCode(HttpStatus.BAD_REQUEST.value());
 		responseStructure.setData(null);
+		responseStructure.setPlatform(null);
 		return responseStructure;
 	}
 
 	public ResponseStructure<String> handleExceededLimits() {
-
+		ResponseStructure<String> responseStructure = new ResponseStructure<String>();
 		responseStructure.setStatus("Error");
 		responseStructure.setMessage("Exceeded limits. Please try again later.");
 		responseStructure.setCode(HttpStatus.TOO_MANY_REQUESTS.value());
 		responseStructure.setData(null);
+		responseStructure.setPlatform(null);
 		return responseStructure;
 	}
 
 	public ResponseStructure<String> handleEmptyGeneratedContent() {
-
+		ResponseStructure<String> responseStructure = new ResponseStructure<String>();
 		responseStructure.setStatus("Error");
 		responseStructure.setMessage("Generated content is empty");
 		responseStructure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 		responseStructure.setData(null);
+		responseStructure.setPlatform(null);
 		return responseStructure;
 	}
 

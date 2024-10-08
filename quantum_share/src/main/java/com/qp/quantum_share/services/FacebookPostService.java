@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -21,6 +22,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.qp.quantum_share.configuration.ConfigurationClass;
 import com.qp.quantum_share.dao.FacebookUserDao;
 import com.qp.quantum_share.dao.QuantumShareUserDao;
+import com.qp.quantum_share.dto.CreditSystem;
 import com.qp.quantum_share.dto.FaceBookUser;
 import com.qp.quantum_share.dto.FacebookPageDetails;
 import com.qp.quantum_share.dto.MediaPost;
@@ -47,15 +49,6 @@ public class FacebookPostService {
 
 	@Autowired
 	FacebookUserDao facebookUserDao;
-
-	@Autowired
-	ResponseStructure<String> structure;
-
-	@Autowired
-	SuccessResponse successResponse;
-
-	@Autowired
-	ErrorResponse errorResponse;
 
 	@Autowired
 	QuantumShareUserDao userDao;
@@ -95,13 +88,14 @@ public class FacebookPostService {
 	}
 
 	public ResponseEntity<List<Object>> postMediaToPage(MediaPost mediaPost, MultipartFile mediaFile, FaceBookUser user,
-			QuantumShareUser qsuser) {
+			QuantumShareUser qsuser, int userId) {
 		List<Object> mainresponse = config.getList();
 		mainresponse.clear();
 
 		try {
 			List<FacebookPageDetails> pages = new ArrayList<>(user.getPageDetails());
 			if (pages.isEmpty()) {
+				ResponseStructure<String> structure = new ResponseStructure<String>();
 				structure.setCode(HttpStatus.NOT_FOUND.value());
 				structure.setMessage("No pages are available for this Facebook account.");
 				structure.setPlatform("facebook");
@@ -117,19 +111,23 @@ public class FacebookPostService {
 				FacebookType response;
 				if (isVideo(mediaFile)) {
 					if (mediaFile.getSize() <= MAX_FILE_SIZE) {
-//					if (false) {
 						ResponseEntity<JsonNode> res = postVideo(facebookPageId, pageAccessToken, mediaFile,
 								mediaPost.getCaption());
 						if (res.getStatusCode().is2xxSuccessful()) {
 							analyticsPostService.savePost(res.getBody().get("id").asText(), facebookPageId, qsuser,
 									mediaFile.getContentType(), "facebook", page.getPageName());
+							QuantumShareUser qs = userDao.fetchUser(userId);
+							CreditSystem credits = qs.getCreditSystem();
+							credits.setRemainingCredit(credits.getRemainingCredit()-1);
+							qs.setCreditSystem(credits);
+							userDao.save(qs);
 							SuccessResponse succesresponse = config.getSuccessResponse();
 							succesresponse.setCode(HttpStatus.OK.value());
 							succesresponse.setMessage("Posted On " + page.getPageName() + " FaceBook Page");
 							succesresponse.setStatus("success");
 							succesresponse.setPlatform("facebook");
+							succesresponse.setRemainingCredits(credits.getRemainingCredit());
 							succesresponse.setData(res.getBody());
-							succesresponse.setRemainingCredits(qsuser.getCredit());
 							mainresponse.add(succesresponse);
 						} else {
 							ErrorResponse errResponse = config.getErrorResponse();
@@ -155,9 +153,11 @@ public class FacebookPostService {
 								mediaPost.getCaption());
 						String pageName = page.getPageName();
 						if (finalResponse.isSuccess()) {
-							qsuser.setCredit(qsuser.getCredit() - 1);
-							userDao.save(qsuser);
-							System.out.println();
+							QuantumShareUser qs = userDao.fetchUser(userId);
+							CreditSystem credits = qs.getCreditSystem();
+							credits.setRemainingCredit(credits.getRemainingCredit()-1);
+							qs.setCreditSystem(credits);
+							userDao.save(qs);
 							analyticsPostService.savePost(finalResponse.getId(), facebookPageId, qsuser,
 									mediaFile.getContentType(), "facebook", pageName);
 							SuccessResponse succesresponse = config.getSuccessResponse();
@@ -165,8 +165,8 @@ public class FacebookPostService {
 							succesresponse.setMessage("Posted On " + pageName + " FaceBook Page");
 							succesresponse.setStatus("success");
 							succesresponse.setPlatform("facebook");
+							succesresponse.setRemainingCredits(credits.getRemainingCredit());
 							succesresponse.setData(finalResponse);
-							succesresponse.setRemainingCredits(qsuser.getCredit());
 							mainresponse.add(succesresponse);
 						} else {
 							ErrorResponse errResponse = config.getErrorResponse();
@@ -185,18 +185,20 @@ public class FacebookPostService {
 							BinaryAttachment.with("source", mediaFile.getBytes()),
 							Parameter.with("message", mediaPost.getCaption()));
 					if (response.getId() != null) {
-						System.out.println("picture : " + response.getId());
 						analyticsPostService.savePost(response.getId(), facebookPageId, qsuser,
 								mediaFile.getContentType(), "facebook", pagename);
 						SuccessResponse succesresponse = config.getSuccessResponse();
-						qsuser.setCredit(qsuser.getCredit() - 1);
-						userDao.save(qsuser);
+						QuantumShareUser qs = userDao.fetchUser(userId);
+						CreditSystem credits = qs.getCreditSystem();
+						credits.setRemainingCredit(credits.getRemainingCredit()-1);
+						qs.setCreditSystem(credits);
+						userDao.save(qs);
 						succesresponse.setCode(HttpStatus.OK.value());
 						succesresponse.setMessage("Posted On " + page.getPageName() + " FaceBook Page");
 						succesresponse.setStatus("success");
 						succesresponse.setData(response);
+						succesresponse.setRemainingCredits(credits.getRemainingCredit());
 						succesresponse.setPlatform("facebook");
-						succesresponse.setRemainingCredits(qsuser.getCredit());
 						mainresponse.add(succesresponse);
 					} else {
 						ErrorResponse errResponse = config.getErrorResponse();
@@ -214,6 +216,7 @@ public class FacebookPostService {
 		} catch (FacebookException e) {
 			if (e.getMessage().contains("Error validating access token: Session has expired")) {
 				mediaLogoutService.disconnectFacebook(qsuser);
+				ResponseStructure<String> structure = new ResponseStructure<String>();
 				structure.setCode(118);
 				structure.setMessage("Access Expiry!! Please Connect your Instagram profile");
 				structure.setPlatform("instagram");
@@ -239,25 +242,26 @@ public class FacebookPostService {
 	private ResponseEntity<JsonNode> postVideo(String facebookPageId, String pageAccessToken, MultipartFile mediaFile,
 			String message) {
 		try {
-			System.out.println("videp methid 1");
 			String url = "https://graph.facebook.com/v20.0/" + facebookPageId + "/videos";
 			headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 			headers.setBearerAuth(pageAccessToken);
-			body.add("file", mediaFile.getResource());
-			System.out.println(mediaFile.getResource());
+			ByteArrayResource mediaResource = new ByteArrayResource(mediaFile.getBytes()) {
+				@Override
+				public String getFilename() {
+					return mediaFile.getOriginalFilename(); // Return the original file name
+				}
+			};
+			body.add("file", mediaResource);
 			if (mediaFile.isEmpty()) {
 				throw new IllegalArgumentException("File is empty.");
 			}
-			System.out.println(mediaFile.getContentType());
-			System.out.println(mediaFile.getInputStream().toString());
 			body.add("description", message);
 			HttpEntity<MultiValueMap<String, Object>> requestEntity = config.getHttpEntityWithMap(body, headers);
-			System.out.println(requestEntity);
 			ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.POST, requestEntity,
 					JsonNode.class);
-			System.out.println("response " + response.getBody());
 			return response;
 		} catch (Exception e) {
+			System.out.println("facebook");
 			e.printStackTrace();
 			throw new CommonException(e.getMessage());
 		}
@@ -267,7 +271,6 @@ public class FacebookPostService {
 	public String createVideoUploadSession(FacebookClient client, String pageId, long fileSize) {
 		ResumableUploadStartResponse response = client.publish(pageId + "/videos", ResumableUploadStartResponse.class,
 				Parameter.with("upload_phase", "start"), Parameter.with("file_size", fileSize));
-		System.out.println(" createVideoUploadSession  :  " + response);
 		return response.getUploadSessionId();
 	}
 
@@ -277,7 +280,6 @@ public class FacebookPostService {
 				ResumableUploadTransferResponse.class, BinaryAttachment.with("video_file_chunk", vidFile),
 				Parameter.with("upload_phase", "transfer"), Parameter.with("start_offset", startOffset),
 				Parameter.with("upload_session_id", uploadSessionId));
-		System.out.println(" video chunnk : " + response);
 		return response.getStartOffset();
 	}
 
@@ -286,8 +288,6 @@ public class FacebookPostService {
 		GraphResponse response = client.publish(facebookPageId + "/videos", GraphResponse.class,
 				Parameter.with("upload_phase", "finish"), Parameter.with("upload_session_id", uploadSessionId),
 				Parameter.with("description", message));
-		System.out.println("response : " + response.toString() + "    ---   " + response);
-		System.out.println("finishVideoUploadSession : " + response.getPostId());
 		return response;
 	}
 
