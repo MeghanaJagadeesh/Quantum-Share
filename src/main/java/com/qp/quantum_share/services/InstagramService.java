@@ -22,6 +22,7 @@ import com.qp.quantum_share.configuration.ConfigurationClass;
 import com.qp.quantum_share.dao.InstagramUserDao;
 import com.qp.quantum_share.dao.QuantumShareUserDao;
 import com.qp.quantum_share.dao.SocialAccountDao;
+import com.qp.quantum_share.dto.CreditSystem;
 import com.qp.quantum_share.dto.InstagramUser;
 import com.qp.quantum_share.dto.MediaPost;
 import com.qp.quantum_share.dto.QuantumShareUser;
@@ -47,17 +48,17 @@ public class InstagramService {
 	@Autowired
 	UploadFileToServer uploadFileToServer;
 
-	@Autowired
-	ResponseStructure<String> structure;
+//	@Autowired
+//	ResponseStructure<String> structure;
 
 	@Autowired
 	ConfigurationClass configuration;
 
-	@Autowired
-	SuccessResponse successResponse;
+//	@Autowired
+//	SuccessResponse successResponse;
 
-	@Autowired
-	ErrorResponse errorResponse;
+//	@Autowired
+//	ErrorResponse errorResponse;
 
 	@Autowired
 	HttpHeaders headers;
@@ -93,8 +94,7 @@ public class InstagramService {
 	SocialMediaLogoutService mediaLogoutService;
 
 	public ResponseEntity<ResponseWrapper> postMediaToPage(MediaPost mediaPost, MultipartFile mediaFile,
-
-			InstagramUser instagramUser, QuantumShareUser user) {
+			InstagramUser instagramUser, int userId) {
 		String accessToken = instagramUser.getInstUserAccessToken();
 		String fileUrl = uploadFileToServer.uploadFile(mediaFile);
 		String instaId = instagramUser.getInstaUserId();
@@ -104,8 +104,9 @@ public class InstagramService {
 		if (mediaFile.getContentType().startsWith("image")) {
 			if (mediaFile.getContentType().equals("image/jpeg") || mediaFile.getContentType().equals("image/png")
 					|| mediaFile.getContentType().equals("image/jpg")) {
-				return postImageToMedia(instaId, fileUrl, mediaPost.getCaption(), accessToken, user, profileName);
+				return postImageToMedia(instaId, fileUrl, mediaPost.getCaption(), accessToken, userId, profileName);
 			} else {
+				ResponseStructure<String> structure = new ResponseStructure<String>();
 				structure.setCode(HttpStatus.BAD_REQUEST.value());
 				structure.setMessage("Invalid File Type. Accepted image types are JPG, PNG, and JPEG.");
 				structure.setStatus("error");
@@ -116,8 +117,9 @@ public class InstagramService {
 			}
 		} else if (mediaFile.getContentType().startsWith("video")) {
 			if (mediaFile.getContentType().equals("video/mp4")) {
-				return postVideoToMedia(instaId, fileUrl, mediaPost.getCaption(), accessToken, user, profileName);
+				return postVideoToMedia(instaId, fileUrl, mediaPost.getCaption(), accessToken, userId, profileName);
 			} else {
+				ResponseStructure<String> structure = new ResponseStructure<String>();
 				structure.setCode(HttpStatus.BAD_REQUEST.value());
 				structure.setMessage("Invalid File Type. Accepted video types are JPG, PNG, and JPEG.");
 				structure.setStatus("error");
@@ -127,6 +129,7 @@ public class InstagramService {
 						HttpStatus.BAD_REQUEST);
 			}
 		} else {
+			ResponseStructure<String> structure = new ResponseStructure<String>();
 			structure.setCode(HttpStatus.BAD_REQUEST.value());
 			structure.setMessage("Invalid File Type");
 			structure.setStatus("error");
@@ -138,7 +141,7 @@ public class InstagramService {
 	}
 
 	private ResponseEntity<ResponseWrapper> postVideoToMedia(String instagramUserId, String fileUrl, String caption,
-			String accessToken, QuantumShareUser user, String profileName) {
+			String accessToken, int userId, String profileName) {
 		try {
 			FacebookClient client = configuration.getFacebookClient(accessToken);
 			GraphResponse container = client.publish(instagramUserId + "/media", GraphResponse.class,
@@ -149,6 +152,7 @@ public class InstagramService {
 				String status = checkMediaStatus(containerId, accessToken);
 				while (!status.equals("FINISHED")) {
 					if (status.equals("ERROR")) {
+						ErrorResponse errorResponse = new ErrorResponse();
 						errorResponse.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 						errorResponse.setMessage("Request Failed");
 						errorResponse.setStatus("error");
@@ -166,21 +170,25 @@ public class InstagramService {
 				}
 				GraphResponse response = client.publish(instagramUserId + "/media_publish", GraphResponse.class,
 						Parameter.with("creation_id", containerId));
-				System.out.println("video " + response);
 				if (response.isSuccess()) {
-					user.setCredit(user.getCredit() - 1);
+					QuantumShareUser user=userDao.fetchUser(userId);
+					CreditSystem credits = user.getCreditSystem();
+					credits.setRemainingCredit(credits.getRemainingCredit() - 1);
+					user.setCreditSystem(credits);
 					userDao.save(user);
 					analyticsPostService.savePost(response.getId(), instagramUserId, user, "video", "instagram",
 							profileName);
+					SuccessResponse successResponse = new SuccessResponse();
 					successResponse.setCode(HttpStatus.OK.value());
 					successResponse.setMessage("Posted On Instagram");
 					successResponse.setStatus("success");
 					successResponse.setData(response);
 					successResponse.setPlatform("instagram");
-					successResponse.setRemainingCredits(user.getCredit());
+					successResponse.setRemainingCredits(credits.getRemainingCredit());
 					return new ResponseEntity<ResponseWrapper>(configuration.getResponseWrapper(successResponse),
 							HttpStatus.OK);
 				} else {
+					ErrorResponse errorResponse = new ErrorResponse();
 					errorResponse.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 					errorResponse.setMessage("Request Failed");
 					errorResponse.setStatus("error");
@@ -189,7 +197,9 @@ public class InstagramService {
 					return new ResponseEntity<ResponseWrapper>(configuration.getResponseWrapper(errorResponse),
 							HttpStatus.INTERNAL_SERVER_ERROR);
 				}
+
 			} else {
+				ResponseStructure<String> structure = new ResponseStructure<String>();
 				structure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 				structure.setMessage("Request Failed");
 				structure.setStatus("error");
@@ -199,10 +209,10 @@ public class InstagramService {
 						HttpStatus.INTERNAL_SERVER_ERROR);
 
 			}
-		} 
-		catch (FacebookException e) {
+		} catch (FacebookException e) {
 			if (e.getMessage().contains("Error validating access token: Session has expired")) {
 //				mediaLogoutService.disconnectInstagram(user);
+				ResponseStructure<String> structure = new ResponseStructure<String>();
 				structure.setCode(118);
 				structure.setMessage("Access Expiry!! Please Connect your Instagram profile");
 				structure.setPlatform("instagram");
@@ -211,8 +221,7 @@ public class InstagramService {
 				return new ResponseEntity<ResponseWrapper>(configuration.getResponseWrapper(structure), HttpStatus.OK);
 			}
 			throw new FBException(e.getMessage(), "instagram");
-		}
-		catch (IllegalArgumentException e) {
+		} catch (IllegalArgumentException e) {
 			throw new IllegalArgumentException(e.getMessage());
 		} catch (NullPointerException e) {
 			throw new NullPointerException(e.getMessage());
@@ -224,8 +233,7 @@ public class InstagramService {
 	}
 
 	private ResponseEntity<ResponseWrapper> postImageToMedia(String instagramUserId, String fileUrl, String caption,
-			String accessToken, QuantumShareUser user, String profileName) {
-		System.out.println(fileUrl);
+			String accessToken, int userId, String profileName) {
 		try {
 			FacebookClient client = configuration.getFacebookClient(accessToken);
 			GraphResponse container = client.publish(instagramUserId + "/media", GraphResponse.class,
@@ -234,23 +242,25 @@ public class InstagramService {
 			String containerId = container.getId();
 			GraphResponse response = client.publish(instagramUserId + "/media_publish", GraphResponse.class,
 					Parameter.with("creation_id", containerId));
-			System.out.println(response);
 			if (response.isSuccess()) {
-
-				user.setCredit(user.getCredit() - 1);
+				QuantumShareUser user = userDao.fetchUser(userId);
+				CreditSystem credits = user.getCreditSystem();
+				credits.setRemainingCredit(credits.getRemainingCredit() - 1);
+				user.setCreditSystem(credits);
 				userDao.save(user);
 				analyticsPostService.savePost(response.getId(), instagramUserId, user, "image", "instagram",
 						profileName);
+				SuccessResponse successResponse = new SuccessResponse();
 				successResponse.setCode(HttpStatus.OK.value());
 				successResponse.setMessage("Posted On Instagram");
 				successResponse.setStatus("success");
 				successResponse.setData(response);
 				successResponse.setPlatform("instagram");
-				System.out.println("instagram " + user.getCredit());
-				successResponse.setRemainingCredits(user.getCredit());
+				successResponse.setRemainingCredits(credits.getRemainingCredit());
 				return new ResponseEntity<ResponseWrapper>(configuration.getResponseWrapper(successResponse),
 						HttpStatus.OK);
 			} else {
+				ErrorResponse errorResponse = new ErrorResponse();
 				errorResponse.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 				errorResponse.setMessage("Request Failed");
 				errorResponse.setStatus("error");
@@ -262,6 +272,7 @@ public class InstagramService {
 		} catch (FacebookException e) {
 			if (e.getMessage().contains("Error validating access token: Session has expired")) {
 //				mediaLogoutService.disconnectInstagram(user);
+				ResponseStructure<String> structure = new ResponseStructure<String>();
 				structure.setCode(118);
 				structure.setMessage("Access Expiry!! Please Connect your Instagram profile");
 				structure.setPlatform("instagram");
@@ -289,13 +300,15 @@ public class InstagramService {
 		return status;
 	}
 
-	public ResponseEntity<ResponseStructure<String>> verifyToken(String access_token, QuantumShareUser user) {
+	public ResponseEntity<ResponseStructure<String>> verifyToken(String access_token, QuantumShareUser user,
+			int userId) {
 		String instaId = fetchID(access_token);
 		JsonNode instaUser = null;
 		ResponseEntity<String> profile = null;
 		if (instaId != null) {
 			instaUser = fetchUsername(instaId, access_token);
 		} else {
+			ResponseStructure<String> structure = new ResponseStructure<String>();
 			structure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			structure.setMessage("Something went wrong, please try again later");
 			structure.setPlatform("instagram");
@@ -307,6 +320,7 @@ public class InstagramService {
 		if (instaId != null && username != null) {
 			profile = fetchProfile(instaId, username, access_token);
 		} else {
+			ResponseStructure<String> structure = new ResponseStructure<String>();
 			structure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			structure.setMessage("Something went wrong, please try again later");
 			structure.setPlatform("instagram");
@@ -314,13 +328,15 @@ public class InstagramService {
 			structure.setData(null);
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.INTERNAL_SERVER_ERROR);
 		}
-		return saveInstaUser(instaId, username, profile, access_token, user, instaUser);
+		return saveInstaUser(instaId, username, profile, access_token, user, instaUser, userId);
 	}
 
 	private ResponseEntity<ResponseStructure<String>> saveInstaUser(String instaId, String username,
-			ResponseEntity<String> profile, String access_token, QuantumShareUser user, JsonNode instaUser) {
+			ResponseEntity<String> profile, String access_token, QuantumShareUser user, JsonNode instaUser,
+			int userId) {
 		try {
 			if (user.getSocialAccounts() == null) {
+				InstagramUser instagramUser = new InstagramUser();
 				instagramUser.setInstaUserId(instaId);
 				instagramUser.setInstaUsername(username.replace("\"", ""));
 				instagramUser.setFollwersCount(instaUser.get("followers_count").asInt());
@@ -329,9 +345,11 @@ public class InstagramService {
 						jsonResponse.has("profile_picture_url") ? jsonResponse.get("profile_picture_url").asText()
 								: null);
 				instagramUser.setInstUserAccessToken(access_token);
+				SocialAccounts socialAccounts = new SocialAccounts();
 				socialAccounts.setInstagramUser(instagramUser);
 				user.setSocialAccounts(socialAccounts);
 			} else if (user.getSocialAccounts().getInstagramUser() == null) {
+				InstagramUser instagramUser = new InstagramUser();
 				instagramUser.setInstaUserId(instaId);
 				instagramUser.setInstaUsername(username.replace("\"", ""));
 				instagramUser.setFollwersCount(instaUser.get("followers_count").asInt());
@@ -361,7 +379,7 @@ public class InstagramService {
 			}
 
 			userDao.save(user);
-
+			ResponseStructure<String> structure = new ResponseStructure<String>();
 			structure.setCode(HttpStatus.CREATED.value());
 			structure.setMessage("Instagram Connected Successfully");
 			structure.setStatus("success");
@@ -379,6 +397,7 @@ public class InstagramService {
 			data.put("instagramUrl", instagramUrl);
 			data.put("InstagramUsername", datauser.getInstaUsername());
 			data.put("Instagram_follwers_count", datauser.getFollwersCount());
+			data.put("user_id", userId);
 			structure.setData(data);
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.CREATED);
 

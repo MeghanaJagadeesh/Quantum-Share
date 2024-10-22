@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.qp.quantum_share.configuration.ConfigurationClass;
 import com.qp.quantum_share.dao.QuantumShareUserDao;
 import com.qp.quantum_share.dao.TelegramUserDao;
+import com.qp.quantum_share.dto.CreditSystem;
 import com.qp.quantum_share.dto.MediaPost;
 import com.qp.quantum_share.dto.QuantumShareUser;
 import com.qp.quantum_share.dto.SocialAccounts;
@@ -37,14 +38,14 @@ import com.qp.quantum_share.response.SuccessResponse;
 @Service
 public class TelegramService {
 
-	@Autowired
-	ResponseStructure<String> structure;
+//	@Autowired
+//	ResponseStructure<String> structure;
 
-	@Autowired
-	SuccessResponse successResponse;
+//	@Autowired
+//	SuccessResponse successResponse;
 
-	@Autowired
-	ErrorResponse errorResponse;
+//	@Autowired
+//	ErrorResponse errorResponse;
 
 	@Autowired
 	SecureRandom secureRandom;
@@ -98,7 +99,7 @@ public class TelegramService {
 		String telegramCode = sb.toString();
 		
 		saveTelegramCode(user, telegramCode);
-
+		ResponseStructure<String> structure=new ResponseStructure<String>();
 		structure.setCode(HttpStatus.OK.value());
 		structure.setMessage("Telegram code generated successfully");
 		structure.setStatus("success");
@@ -110,11 +111,14 @@ public class TelegramService {
 	private void saveTelegramCode(QuantumShareUser user, String telegramCode) {
 		SocialAccounts userSocialAccounts = user.getSocialAccounts();
 		if (userSocialAccounts == null) {
+			TelegramUser telegramUser=new TelegramUser();
 			telegramUser.setTelegramCode(telegramCode);
+			SocialAccounts socialAccounts=new SocialAccounts();
 			socialAccounts.setTelegramUser(telegramUser);
 			user.setSocialAccounts(socialAccounts);
 			userDao.save(user);
 		} else if (userSocialAccounts.getTelegramUser() == null) {
+			TelegramUser telegramUser=new TelegramUser();
 			telegramUser.setTelegramCode(telegramCode);
 			userSocialAccounts.setTelegramUser(telegramUser);
 			user.setSocialAccounts(userSocialAccounts);
@@ -129,11 +133,12 @@ public class TelegramService {
 	}
 
 	// Fetching Group Details
-	public ResponseEntity<ResponseStructure<String>> pollTelegramUpdates(QuantumShareUser user) {
+	public ResponseEntity<ResponseStructure<String>> pollTelegramUpdates(QuantumShareUser user, int userId) {
 		String telegramCode = user.getSocialAccounts().getTelegramUser().getTelegramCode();
 		String telegramApiUrl = "https://api.telegram.org/bot%s/getUpdates";
 		String url = String.format(telegramApiUrl, telegramBotToken);
-
+		ResponseStructure<String> structure=new ResponseStructure<String>();
+		
 		ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
 
 		if (response.getStatusCode() == HttpStatus.OK) {
@@ -182,12 +187,14 @@ public class TelegramService {
 					structure.setMessage("Telegram Connected Successfully");
 					structure.setStatus("success");
 					structure.setPlatform("telegram");
+					structure.setData(null);
 					Map<String, Object> data = config.getMap();
 					TelegramUser dataUser = user.getSocialAccounts().getTelegramUser();
 					data.put("telegramChatId", dataUser.getTelegramChatId());
 					data.put("telegramGroupName", dataUser.getTelegramGroupName());
 					data.put("telegramProfileUrl", dataUser.getTelegramProfileUrl());
 					data.put("telegramGroupMembersCount", dataUser.getTelegramGroupMembersCount());
+					data.put("user_id", userId);
 					structure.setData(data);
 					return new ResponseEntity<>(structure, HttpStatus.CREATED);
 				} else {
@@ -291,11 +298,11 @@ public class TelegramService {
 			int telegramGroupMembersCount, String telegramProfileUrl) {
 		SocialAccounts userSocialAccounts = user.getSocialAccounts();
 		if (userSocialAccounts == null) {
-			user.setSocialAccounts(socialAccounts);
+			user.setSocialAccounts(new SocialAccounts());
 		}
 		TelegramUser userTelegramUser = userSocialAccounts.getTelegramUser();
 		if (userTelegramUser == null) {
-			userTelegramUser = telegramUser;
+			userTelegramUser = new TelegramUser();
 			userSocialAccounts.setTelegramUser(userTelegramUser);
 		}
 		userTelegramUser.setTelegramChatId(telegramChatId);
@@ -307,7 +314,9 @@ public class TelegramService {
 
 	// Media Posting
 	public ResponseEntity<ResponseWrapper> postMediaToGroup(MediaPost mediaPost, MultipartFile mediaFile,
-			TelegramUser telegramUser, QuantumShareUser user) {
+			TelegramUser telegramUser, int userId) {
+		ResponseStructure<String> structure=new ResponseStructure<String>();
+		
 		if (telegramUser == null) {
 			structure.setMessage("Telegram user not found");
 			structure.setCode(HttpStatus.NOT_FOUND.value());
@@ -321,9 +330,9 @@ public class TelegramService {
 		String contentType = mediaFile.getContentType();
 		try {
 			if (contentType != null && contentType.startsWith("image/")) {
-				return sendPhotoToGroup(telegramId, telgramChatId, mediaFile, mediaPost.getCaption(), user);
+				return sendPhotoToGroup(telegramId, telgramChatId, mediaFile, mediaPost.getCaption(), userId);
 			} else if (contentType != null && contentType.startsWith("video/")) {
-				return sendVideoToGroup(telegramId, telgramChatId, mediaFile, mediaPost.getCaption(), user);
+				return sendVideoToGroup(telegramId, telgramChatId, mediaFile, mediaPost.getCaption(), userId);
 			} else {
 				structure.setMessage("Unsupported media type");
 				structure.setCode(HttpStatus.BAD_REQUEST.value());
@@ -334,6 +343,7 @@ public class TelegramService {
 						HttpStatus.BAD_REQUEST);
 			}
 		} catch (Exception e) {
+			ErrorResponse errorResponse=new ErrorResponse();
 			errorResponse.setMessage("Failed to send media: " + e.getMessage());
 			errorResponse.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			errorResponse.setPlatform("telegram");
@@ -345,7 +355,7 @@ public class TelegramService {
 	}
 
 	public ResponseEntity<ResponseWrapper> sendPhotoToGroup(int telegramId, long telgramChatId, MultipartFile mediaFile,
-			String caption, QuantumShareUser user) throws IOException {
+			String caption, int userId) throws IOException {
 		String telegramApiPhotoUrl = "https://api.telegram.org/bot%s/sendPhoto";
 		String url = String.format(telegramApiPhotoUrl, telegramBotToken);
 
@@ -361,17 +371,22 @@ public class TelegramService {
 		ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, requestEntity, String.class);
 
 		if (response.getStatusCode().is2xxSuccessful()) {
-			user.setCredit(user.getCredit() - 1);
+			QuantumShareUser user=userDao.fetchUser(userId);
+			CreditSystem credits = user.getCreditSystem();
+			credits.setRemainingCredit(credits.getRemainingCredit()-1);
+			user.setCreditSystem(credits);
 			userDao.save(user);
+			SuccessResponse successResponse=new SuccessResponse();
 			successResponse.setMessage("Posted On Telegram");
 			successResponse.setCode(HttpStatus.OK.value());
 			successResponse.setPlatform("telegram");
 			successResponse.setStatus("success");
 			successResponse.setData(null);
-			successResponse.setRemainingCredits(user.getCredit());
+			successResponse.setRemainingCredits(credits.getRemainingCredit());
 			return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(successResponse), HttpStatus.OK);
 
 		} else {
+			ErrorResponse errorResponse=new ErrorResponse();
 			errorResponse.setMessage("Request Failed to process");
 			errorResponse.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			errorResponse.setPlatform("telegram");
@@ -383,7 +398,7 @@ public class TelegramService {
 	}
 
 	public ResponseEntity<ResponseWrapper> sendVideoToGroup(int telegramId, long telgramChatId, MultipartFile mediaFile,
-			String caption, QuantumShareUser user) throws IOException {
+			String caption, int userId) throws IOException {
 		String telegramApiVideoUrl = "https://api.telegram.org/bot%s/sendVideo";
 		String url = String.format(telegramApiVideoUrl, telegramBotToken);
 
@@ -399,17 +414,22 @@ public class TelegramService {
 		ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.POST, requestEntity, JsonNode.class);
 
 		if (response.getStatusCode().is2xxSuccessful()) {
-			user.setCredit(user.getCredit() - 1);
+			QuantumShareUser user=userDao.fetchUser(userId);
+			CreditSystem credits = user.getCreditSystem();
+			credits.setRemainingCredit(credits.getRemainingCredit()-1);
+			user.setCreditSystem(credits);
 			userDao.save(user);
+			SuccessResponse successResponse=new SuccessResponse();
 			successResponse.setMessage("Posted On Telegram");
 			successResponse.setCode(HttpStatus.OK.value());
 			successResponse.setPlatform("telegram");
 			successResponse.setStatus("success");
 			successResponse.setData(null);
-			successResponse.setRemainingCredits(user.getCredit());
+			successResponse.setRemainingCredits(credits.getRemainingCredit());
 			return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(successResponse), HttpStatus.OK);
 
 		} else {
+			ErrorResponse errorResponse=new ErrorResponse();
 			errorResponse.setMessage("Request Failed to process");
 			errorResponse.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			errorResponse.setPlatform("telegram");

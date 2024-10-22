@@ -22,8 +22,8 @@ public class PaymentController {
 	@Autowired
 	HttpServletRequest request;
 
-	@Autowired
-	ResponseStructure<String> structure;
+//	@Autowired
+//	ResponseStructure<String> structure;
 
 	@Autowired
 	JwtUtilConfig jwtUtilConfig;
@@ -36,6 +36,7 @@ public class PaymentController {
 			@RequestParam String packageName) {
 		String token = request.getHeader("Authorization");
 		if (token == null || !token.startsWith("Bearer ")) {
+			ResponseStructure<String> structure=new ResponseStructure<String>();
 			structure.setCode(115);
 			structure.setMessage("Missing or invalid authorization token");
 			structure.setStatus("error");
@@ -54,6 +55,7 @@ public class PaymentController {
 			@RequestParam String razorpay_signature) {
 		String token = request.getHeader("Authorization");
 		if (token == null || !token.startsWith("Bearer ")) {
+			ResponseStructure<String> structure=new ResponseStructure<String>();
 			structure.setCode(115);
 			structure.setMessage("Missing or invalid authorization token");
 			structure.setStatus("error");
@@ -62,6 +64,7 @@ public class PaymentController {
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.UNAUTHORIZED);
 		}
 		if (razorpay_payment_id == null) {
+			ResponseStructure<String> structure=new ResponseStructure<String>();
 			structure.setCode(HttpStatus.UNAUTHORIZED.value());
 			structure.setMessage("Missing Payment Id");
 			structure.setStatus("error");

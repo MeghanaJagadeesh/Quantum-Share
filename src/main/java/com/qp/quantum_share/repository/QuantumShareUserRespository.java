@@ -14,4 +14,6 @@ public interface QuantumShareUserRespository extends JpaRepository<QuantumShareU
 
 	public QuantumShareUser findByVerificationToken(String token);
 
+	public QuantumShareUser findByEmail(String email);
+
 }

@@ -28,8 +28,8 @@ public class PaymentService {
 	@Autowired
 	QuantumShareUserDao userDao;
 
-	@Autowired
-	ResponseStructure<String> structure;
+//	@Autowired
+//	ResponseStructure<String> structure;
 
 	@Autowired
 	SubscriptionDetails subscriptionDetails;
@@ -39,20 +39,22 @@ public class PaymentService {
 
 	@Value("${quantumshare.standardDays}")
 	private int standardDays;
-	
+
 	@Value("${quantumshare.razorpay.key_id}")
 	private String key_id;
-	
+
 	@Value("${quantumshare.razorpay.key_secret}")
 	private String key_secret;
 
 	public ResponseEntity<ResponseStructure<String>> subscription(double amount, int userId, String packageName) {
 		QuantumShareUser user = userDao.fetchUser(userId);
 		if (user == null) {
+			ResponseStructure<String> structure = new ResponseStructure<String>();
 			structure.setCode(HttpStatus.NOT_FOUND.value());
 			structure.setMessage("user doesn't exists, please login");
 			structure.setStatus("error");
 			structure.setData(null);
+			structure.setPlatform(null);
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
 		}
 		try {
@@ -75,7 +77,7 @@ public class PaymentService {
 				subscription.setNameOfPackage(packageName);
 				if (packageName.equals("standard"))
 					subscriptionDetails.setSubscriptiondays(standardDays);
-				
+
 				user.setSubscriptionDetails(subscription);
 				userDao.save(user);
 			}
@@ -97,7 +99,7 @@ public class PaymentService {
 			Map<String, Object> createPayment = configure.getMap();
 			createPayment.put("payment", map);
 			createPayment.put("user", userMap);
-
+			ResponseStructure<String> structure = new ResponseStructure<String>();
 			structure.setCode(HttpStatus.CREATED.value());
 			structure.setMessage(null);
 			structure.setPlatform(null);
@@ -114,10 +116,12 @@ public class PaymentService {
 			String razorpay_order_id, String razorpay_payment_id, String razorpay_signature) {
 		QuantumShareUser user = userDao.fetchUser(userId);
 		if (user == null) {
+			ResponseStructure<String> structure = new ResponseStructure<String>();
 			structure.setCode(HttpStatus.NOT_FOUND.value());
 			structure.setMessage("user doesn't exists, please signup");
 			structure.setStatus("error");
 			structure.setData(null);
+			structure.setPlatform(null);
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
 		}
 		SubscriptionDetails subscription = user.getSubscriptionDetails();
@@ -149,6 +153,7 @@ public class PaymentService {
 			map.put("company", user.getCompany());
 			map.put("subscription", paymentDetails);
 
+			ResponseStructure<String> structure = new ResponseStructure<String>();
 			structure.setCode(HttpStatus.OK.value());
 			structure.setData(map);
 			structure.setPlatform(null);

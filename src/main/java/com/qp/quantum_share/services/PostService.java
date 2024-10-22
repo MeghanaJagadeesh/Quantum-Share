@@ -8,14 +8,18 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.qp.quantum_share.configuration.ConfigurationClass;
 import com.qp.quantum_share.dao.FacebookUserDao;
 import com.qp.quantum_share.dao.InstagramUserDao;
 import com.qp.quantum_share.dao.QuantumShareUserDao;
 import com.qp.quantum_share.dao.TelegramUserDao;
+import com.qp.quantum_share.dao.YoutubeUserDao;
+import com.qp.quantum_share.dto.LinkedInPageDto;
 import com.qp.quantum_share.dto.LinkedInProfileDto;
 import com.qp.quantum_share.dto.MediaPost;
 import com.qp.quantum_share.dto.QuantumShareUser;
+import com.qp.quantum_share.dto.RedditDto;
 import com.qp.quantum_share.dto.SocialAccounts;
 import com.qp.quantum_share.response.ErrorResponse;
 import com.qp.quantum_share.response.ResponseStructure;
@@ -26,8 +30,8 @@ import twitter4j.TwitterException;
 @Service
 public class PostService {
 
-	@Autowired
-	ResponseStructure<String> structure;
+//	@Autowired
+//	ResponseStructure<String> structure;
 
 	@Autowired
 	FacebookPostService facebookPostService;
@@ -65,11 +69,21 @@ public class PostService {
 	@Autowired
 	LinkedInProfileDto linkedInProfileDto;
 
-	public ResponseEntity<List<Object>> postOnFb(MediaPost mediaPost, MultipartFile mediaFile, QuantumShareUser user) {
+	@Autowired
+	YoutubeService youtubeService;
+
+	@Autowired
+	YoutubeUserDao youtubeUserDao;
+	
+	@Autowired
+	RedditService redditService;
+
+	public ResponseEntity<List<Object>> postOnFb(MediaPost mediaPost, MultipartFile mediaFile, QuantumShareUser user, int userId) {
 		SocialAccounts socialAccounts = user.getSocialAccounts();
 		List<Object> response = config.getList();
 		if (mediaPost.getMediaPlatform().contains("facebook")) {
 			if (socialAccounts == null || socialAccounts.getFacebookUser() == null) {
+				ResponseStructure<String> structure=new ResponseStructure<String>();
 				structure.setMessage("Please connect your facebook account");
 				structure.setCode(HttpStatus.NOT_FOUND.value());
 				structure.setPlatform("facebook");
@@ -80,8 +94,9 @@ public class PostService {
 			}
 			if (socialAccounts.getFacebookUser() != null)
 				return facebookPostService.postMediaToPage(mediaPost, mediaFile, socialAccounts.getFacebookUser(),
-						user);
+						user, userId);
 			else {
+				ResponseStructure<String> structure=new ResponseStructure<String>();
 				structure.setMessage("Please connect your facebook account");
 				structure.setCode(HttpStatus.NOT_FOUND.value());
 				structure.setPlatform("facebook");
@@ -95,10 +110,11 @@ public class PostService {
 	}
 
 	public ResponseEntity<ResponseWrapper> postOnInsta(MediaPost mediaPost, MultipartFile mediaFile,
-			QuantumShareUser user) {
+			QuantumShareUser user,int userId) {
 		SocialAccounts socialAccounts = user.getSocialAccounts();
 		if (mediaPost.getMediaPlatform().contains("instagram")) {
 			if (socialAccounts == null || socialAccounts.getInstagramUser() == null) {
+				ResponseStructure<String> structure=new ResponseStructure<String>();
 				structure.setMessage("Please connect your Instagram account");
 				structure.setCode(HttpStatus.NOT_FOUND.value());
 				structure.setPlatform("instagram");
@@ -107,8 +123,9 @@ public class PostService {
 				return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure), HttpStatus.NOT_FOUND);
 			}
 			if (socialAccounts.getInstagramUser() != null)
-				return instagramService.postMediaToPage(mediaPost, mediaFile, socialAccounts.getInstagramUser(), user);
+				return instagramService.postMediaToPage(mediaPost, mediaFile, socialAccounts.getInstagramUser(), userId);
 			else {
+				ResponseStructure<String> structure=new ResponseStructure<String>();
 				structure.setMessage("Please connect your Instagram account");
 				structure.setCode(HttpStatus.NOT_FOUND.value());
 				structure.setPlatform("facebook");
@@ -121,10 +138,11 @@ public class PostService {
 	}
 
 	public ResponseEntity<ResponseWrapper> postOnTelegram(MediaPost mediaPost, MultipartFile mediaFile,
-			QuantumShareUser user) {
+			QuantumShareUser user, int userId) {
 		SocialAccounts socialAccounts = user.getSocialAccounts();
 		if (mediaPost.getMediaPlatform().contains("telegram")) {
 			if (socialAccounts == null || socialAccounts.getTelegramUser() == null) {
+				ResponseStructure<String> structure=new ResponseStructure<String>();
 				structure.setMessage("Please Connect Your Telegram Account");
 				structure.setCode(HttpStatus.NOT_FOUND.value());
 				structure.setPlatform("telegram");
@@ -133,8 +151,9 @@ public class PostService {
 				return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure), HttpStatus.NOT_FOUND);
 			}
 			if (socialAccounts.getTelegramUser() != null) {
-				return telegramService.postMediaToGroup(mediaPost, mediaFile, socialAccounts.getTelegramUser(), user);
+				return telegramService.postMediaToGroup(mediaPost, mediaFile, socialAccounts.getTelegramUser(), userId);
 			} else {
+				ResponseStructure<String> structure=new ResponseStructure<String>();
 				structure.setMessage("Please Connect Your Telegram Account");
 				structure.setCode(HttpStatus.NOT_FOUND.value());
 				structure.setPlatform("telegram");
@@ -151,6 +170,7 @@ public class PostService {
 		SocialAccounts socialAccounts = user.getSocialAccounts();
 		if (mediaPost.getMediaPlatform().contains("twitter")) {
 			if (socialAccounts == null || socialAccounts.getTwitterUser() == null) {
+				ResponseStructure<String> structure=new ResponseStructure<String>();
 				structure.setMessage("Please connect your Twitter account");
 				structure.setCode(HttpStatus.NOT_FOUND.value());
 				structure.setPlatform("twitter");
@@ -165,10 +185,11 @@ public class PostService {
 	}
 
 	public ResponseEntity<ResponseWrapper> postOnLinkedIn(MediaPost mediaPost, MultipartFile mediaFile,
-			SocialAccounts socialAccounts) {
-
+			QuantumShareUser user, int userId) {
+		System.out.println("co");
 		if (mediaPost.getMediaPlatform().contains("LinkedIn")) {
-			if (socialAccounts == null || socialAccounts.getLinkedInProfileDto() == null) {
+			if (user == null || user.getSocialAccounts().getLinkedInProfileDto() == null) {
+				ResponseStructure<String> structure=new ResponseStructure<String>();
 				structure.setMessage("Please connect your LinkedIn account");
 				structure.setCode(HttpStatus.NOT_FOUND.value());
 				structure.setPlatform("LinkedIn");
@@ -176,34 +197,45 @@ public class PostService {
 				structure.setData(null);
 				return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure), HttpStatus.NOT_FOUND);
 			}
-
-			LinkedInProfileDto linkedInProfileUser = socialAccounts.getLinkedInProfileDto();
+			
+			LinkedInProfileDto linkedInProfileUser = user.getSocialAccounts().getLinkedInProfileDto();
 			ResponseStructure<String> response;
 
 			if (mediaFile != null && !mediaFile.isEmpty() && mediaPost.getCaption() != null
 					&& !mediaPost.getCaption().isEmpty()) {
+				System.out.println("1");
 				response = linkedInProfilePostService.uploadImageToLinkedIn(mediaFile, mediaPost.getCaption(),
-						linkedInProfileUser);
+						linkedInProfileUser,userId);
+				System.out.println("uploadImageToLinkedIn : "+response);
 			} else if (mediaPost.getCaption() != null && !mediaPost.getCaption().isEmpty()) {
-				response = linkedInProfilePostService.createPostProfile(mediaPost.getCaption(), linkedInProfileUser);
+				System.out.println("2");
+				response = linkedInProfilePostService.createPostProfile(mediaPost.getCaption(), linkedInProfileUser,userId);
+				
+				System.err.println("createPostProfile : "+response);
 			} else if (mediaFile != null && !mediaFile.isEmpty()) {
-				response = linkedInProfilePostService.uploadImageToLinkedIn(mediaFile, "", linkedInProfileUser);
+				System.out.println("3");
+				response = linkedInProfilePostService.uploadImageToLinkedIn(mediaFile, "", linkedInProfileUser, userId);
+				System.out.println("uploadImageToLinkedIn : "+response);
 			} else {
+				ResponseStructure<String> structure=new ResponseStructure<String>();
 				structure.setStatus("Failure");
 				structure.setMessage("Please connect your LinkedIn account");
 				structure.setCode(HttpStatus.BAD_REQUEST.value());
 				return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure),
 						HttpStatus.BAD_REQUEST);
 			}
-
+			ResponseStructure<String> structure=new ResponseStructure<String>();
+			
 			// Map the response from ResponseStructure to ResponseWrapper
 			structure.setStatus(response.getStatus());
 			structure.setMessage(response.getMessage());
 			structure.setCode(response.getCode());
 			structure.setData(response.getData());
+			structure.setPlatform("linkedin");
 			return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure),
 					HttpStatus.valueOf(response.getCode()));
 		}
+		ResponseStructure<String> structure=new ResponseStructure<String>();
 		structure.setMessage("Please connect your LinkedIn account");
 		structure.setCode(HttpStatus.BAD_REQUEST.value());
 		structure.setPlatform("LinkedIn");
@@ -213,11 +245,12 @@ public class PostService {
 	}
 
 	public ResponseEntity<ResponseWrapper> postOnLinkedInPage(MediaPost mediaPost, MultipartFile mediaFile,
-			SocialAccounts socialAccounts) {
+			QuantumShareUser user, int userId) {
 		ResponseStructure<String> response;
 
 		if (mediaPost.getMediaPlatform().contains("LinkedIn")) {
-			if (socialAccounts == null || socialAccounts.getLinkedInProfileDto() == null) {
+			if (user == null ||user.getSocialAccounts().getLinkedInPages() == null) {
+				ResponseStructure<String> structure=new ResponseStructure<String>();
 				structure.setMessage("Please connect your LinkedIn account");
 				structure.setCode(HttpStatus.NOT_FOUND.value());
 				structure.setPlatform("LinkedIn");
@@ -226,28 +259,30 @@ public class PostService {
 				return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure), HttpStatus.NOT_FOUND);
 			}
 
-			LinkedInProfileDto linkedInProfileUser = socialAccounts.getLinkedInProfileDto();
+			LinkedInPageDto linkedInPageUser = user.getSocialAccounts().getLinkedInPages();
 
 			if (mediaFile != null && !mediaFile.isEmpty() && mediaPost.getCaption() != null
 					&& !mediaPost.getCaption().isEmpty()) {
 				// Both file and caption are present
 				response = linkedInProfilePostService.uploadImageToLinkedInPage(mediaFile, mediaPost.getCaption(),
-						linkedInProfileUser);
+						linkedInPageUser,userId);
 			} else if (mediaPost.getCaption() != null && !mediaPost.getCaption().isEmpty()) {
 				// Only caption is present
-				response = linkedInProfilePostService.createPostPage(mediaPost.getCaption(), linkedInProfileUser);
+				response = linkedInProfilePostService.createPostPage(mediaPost.getCaption(), linkedInPageUser,userId);
 			} else if (mediaFile != null && !mediaFile.isEmpty()) {
 				// Only file is present
-				response = linkedInProfilePostService.uploadImageToLinkedInPage(mediaFile, "", linkedInProfileUser);
+				response = linkedInProfilePostService.uploadImageToLinkedInPage(mediaFile, "", linkedInPageUser, userId);
 			} else {
-				// Neither file nor caption are present
+				ResponseStructure<String> structure=new ResponseStructure<String>();
 				structure.setStatus("Failure");
+				structure.setPlatform("linkedin");
+				structure.setData(null);
 				structure.setMessage("Please connect your LinkedIn account");
 				structure.setCode(HttpStatus.BAD_REQUEST.value());
 				return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure),
 						HttpStatus.BAD_REQUEST);
 			}
-
+			ResponseStructure<String> structure=new ResponseStructure<String>();
 			// Map the response from ResponseStructure to ResponseWrapper
 			structure.setStatus(response.getStatus());
 			structure.setMessage(response.getMessage());
@@ -257,6 +292,7 @@ public class PostService {
 					HttpStatus.valueOf(response.getCode()));
 		}
 
+		ResponseStructure<String> structure=new ResponseStructure<String>();
 		structure.setMessage("Please connect your LinkedIn account");
 		structure.setCode(HttpStatus.BAD_REQUEST.value());
 		structure.setPlatform("LinkedIn");
@@ -266,13 +302,15 @@ public class PostService {
 	}
 
 	public ResponseEntity<ResponseWrapper> prePostOnLinkedIn(MediaPost mediaPost, MultipartFile mediaFile,
-			QuantumShareUser user) {
-		LinkedInProfileDto linkedInProfile = user.getSocialAccounts().getLinkedInProfileDto();
-		if (linkedInProfile.getLinkedinProfileURN() != null) {
-			return postOnLinkedIn(mediaPost, mediaFile, user.getSocialAccounts());
-		} else if (linkedInProfile.getPages().get(0).getLinkedinPageURN() != null) {
-			return postOnLinkedInPage(mediaPost, mediaFile, user.getSocialAccounts());
+			QuantumShareUser user,int userId) {
+		SocialAccounts accounts = user.getSocialAccounts();
+		
+		if (!accounts.isLinkedInPagePresent()) {
+			return postOnLinkedIn(mediaPost, mediaFile, user,userId);
+		} else if (accounts.isLinkedInPagePresent()) {
+			return postOnLinkedInPage(mediaPost, mediaFile, user,userId);
 		} else {
+			ResponseStructure<String> structure=new ResponseStructure<String>();
 			structure.setCode(HttpStatus.NOT_FOUND.value());
 			structure.setMessage("user has not connected LinkedIn profile");
 			structure.setPlatform("linkedIn");
@@ -281,5 +319,191 @@ public class PostService {
 			return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure), HttpStatus.NOT_FOUND);
 		}
 	}
+
+	// Youtube
+	public ResponseEntity<ResponseWrapper> postOnYoutube(MediaPost mediaPost, MultipartFile mediaFile,
+			SocialAccounts socialAccounts, int userId) {
+		ResponseStructure<String> structure=new ResponseStructure<String>();
+		if (mediaPost.getMediaPlatform().contains("youtube")) {
+			if (socialAccounts == null || socialAccounts.getYoutubeUser() == null) {
+				structure.setMessage("Please Connect Your Youtube Account");
+				structure.setCode(HttpStatus.NOT_FOUND.value());
+				structure.setPlatform("youtube");
+				structure.setStatus("error");
+				structure.setData(null);
+				return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure), HttpStatus.NOT_FOUND);
+			}
+			if (socialAccounts.getYoutubeUser() != null) {
+				return youtubeService.postMediaToChannel(mediaPost, mediaFile,
+						youtubeUserDao.findById(socialAccounts.getYoutubeUser().getYoutubeId()),userId);
+			} else {
+				structure.setMessage("Please Connect Your Youtube Account");
+				structure.setCode(HttpStatus.NOT_FOUND.value());
+				structure.setPlatform("youtube");
+				structure.setStatus("error");
+				structure.setData(null);
+				return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure), HttpStatus.NOT_FOUND);
+			}
+		}
+		return null;
+	}
+	
+	//Reddit
+		public ResponseStructure<JsonNode> submitPost(
+		        String subreddit,
+		        String title,
+		        SocialAccounts socialAccounts,
+		        MediaPost mediaPost) {
+
+			String text = mediaPost.getCaption();
+		    ResponseStructure<JsonNode> responseStructure = new ResponseStructure<>();
+
+		    // Check if mediaPlatform is null or empty
+		    if (mediaPost.getMediaPlatform() == null || mediaPost.getMediaPlatform().isEmpty()) {
+		        responseStructure.setMessage("Please select the media platform");
+		        responseStructure.setStatus("error");
+		        responseStructure.setCode(HttpStatus.BAD_REQUEST.value());
+		        responseStructure.setPlatform("Reddit");
+		        responseStructure.setData(null);
+		        return responseStructure;
+		    }
+
+		    if (mediaPost.getMediaPlatform().contains("Reddit")) {
+		        if (socialAccounts == null || socialAccounts.getRedditDto() == null) {
+		            responseStructure.setMessage("Please connect your Reddit account");
+		            responseStructure.setStatus("error");
+		            responseStructure.setCode(HttpStatus.NOT_FOUND.value());
+		            responseStructure.setPlatform("Reddit");
+		            responseStructure.setData(null);
+		            return responseStructure;
+		        }
+
+		        RedditDto redditUser = socialAccounts.getRedditDto();
+
+		        // Check if subreddit, title, or text are missing or empty
+		        if (subreddit == null || subreddit.trim().isEmpty()) {
+		            responseStructure.setMessage("Subreddit is required");
+		            responseStructure.setStatus("error");
+		            responseStructure.setCode(HttpStatus.BAD_REQUEST.value());
+		            responseStructure.setPlatform("Reddit");
+		            responseStructure.setData(null);
+		            return responseStructure;
+		        }
+
+		        if (title == null || title.trim().isEmpty()) {
+		            responseStructure.setMessage("Title is required");
+		            responseStructure.setStatus("error");
+		            responseStructure.setCode(HttpStatus.BAD_REQUEST.value());
+		            responseStructure.setPlatform("Reddit");
+		            responseStructure.setData(null);
+		            return responseStructure;
+		        }
+
+		        if (text == null || text.trim().isEmpty()) {
+		            responseStructure.setMessage("Text is required");
+		            responseStructure.setStatus("error");
+		            responseStructure.setCode(HttpStatus.BAD_REQUEST.value());
+		            responseStructure.setPlatform("Reddit");
+		            responseStructure.setData(null);
+		            return responseStructure;
+		        }
+		        System.out.println(subreddit + " " + title + " " + text + " " + redditUser);
+		        // If all parameters are present and not empty, proceed to submit the post
+		        responseStructure = redditService.submitPost(subreddit, title, text, redditUser);
+
+		        // Customize the response structure
+		        if (responseStructure.getStatus().equals("success")) {
+		            responseStructure.setMessage("Text post submitted successfully");
+		            responseStructure.setCode(HttpStatus.OK.value());
+		            responseStructure.setPlatform("Reddit");
+		        }
+
+		        return responseStructure;
+		    } else {
+		        responseStructure.setMessage("Please connect your Reddit account");
+		        responseStructure.setStatus("error");
+		        responseStructure.setCode(HttpStatus.NOT_FOUND.value());
+		        responseStructure.setPlatform("Reddit");
+		        responseStructure.setData(null);
+		        return responseStructure;
+		    }
+		}
+
+
+
+			public ResponseEntity<ResponseStructure<JsonNode>> submitLinkPost(String subreddit, String title, String url,
+					SocialAccounts socialAccounts, MediaPost mediaPost) {
+				 ResponseStructure<JsonNode> responseStructure = new ResponseStructure<>();
+
+				    // Check if mediaPlatform is null or empty
+				    if (mediaPost.getMediaPlatform() == null || mediaPost.getMediaPlatform().isEmpty()) {
+				        responseStructure.setMessage("Please select the media platform");
+				        responseStructure.setStatus("error");
+				        responseStructure.setCode(HttpStatus.BAD_REQUEST.value());
+				        responseStructure.setPlatform("Reddit");
+				        responseStructure.setData(null);
+				        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseStructure);
+				    }
+
+				    if (mediaPost.getMediaPlatform().contains("Reddit")) {
+				        if (socialAccounts == null || socialAccounts.getRedditDto() == null) {
+				            responseStructure.setMessage("Please connect your Reddit account");
+				            responseStructure.setStatus("error");
+				            responseStructure.setCode(HttpStatus.NOT_FOUND.value());
+				            responseStructure.setPlatform("Reddit");
+				            responseStructure.setData(null);
+				            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(responseStructure);
+				        }
+
+				        RedditDto redditUser = socialAccounts.getRedditDto();
+
+				        // Check if subreddit, title, or url are missing or empty
+				        if (subreddit == null || subreddit.trim().isEmpty()) {
+				            responseStructure.setMessage("Subreddit is required");
+				            responseStructure.setStatus("error");
+				            responseStructure.setCode(HttpStatus.BAD_REQUEST.value());
+				            responseStructure.setPlatform("Reddit");
+				            responseStructure.setData(null);
+				            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseStructure);
+				        }
+
+				        if (title == null || title.trim().isEmpty()) {
+				            responseStructure.setMessage("Title is required");
+				            responseStructure.setStatus("error");
+				            responseStructure.setCode(HttpStatus.BAD_REQUEST.value());
+				            responseStructure.setPlatform("Reddit");
+				            responseStructure.setData(null);
+				            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseStructure);
+				        }
+
+				        if (url == null || url.trim().isEmpty()) {
+				            responseStructure.setMessage("URL is required");
+				            responseStructure.setStatus("error");
+				            responseStructure.setCode(HttpStatus.BAD_REQUEST.value());
+				            responseStructure.setPlatform("Reddit");
+				            responseStructure.setData(null);
+				            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseStructure);
+				        }
+
+				        // If all parameters are present and not empty, proceed to submit the post
+				        responseStructure = redditService.submitLinkPost(subreddit, title, url, redditUser);
+
+				        // Customize the response structure
+				        if (responseStructure.getStatus().equals("success")) {
+				            responseStructure.setMessage("Link post submitted successfully");
+				            responseStructure.setCode(HttpStatus.OK.value());
+				            responseStructure.setPlatform("Reddit");
+				        } 
+
+				        return ResponseEntity.status(responseStructure.getCode()).body(responseStructure);
+				    } else {
+				        responseStructure.setMessage("Please connect your Reddit account");
+				        responseStructure.setStatus("error");
+				        responseStructure.setCode(HttpStatus.NOT_FOUND.value());
+				        responseStructure.setPlatform("Reddit");
+				        responseStructure.setData(null);
+				        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(responseStructure);
+				    }
+				}
 
 }

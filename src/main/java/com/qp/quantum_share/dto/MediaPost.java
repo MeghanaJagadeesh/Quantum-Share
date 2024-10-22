@@ -6,4 +6,5 @@ import lombok.Data;
 public class MediaPost {
 	private String mediaPlatform;
 	private String caption;
+	private String title;
 }

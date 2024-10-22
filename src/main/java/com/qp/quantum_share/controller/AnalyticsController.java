@@ -23,8 +23,8 @@ public class AnalyticsController {
 	@Autowired
 	HttpServletRequest request;
 
-	@Autowired
-	ResponseStructure<String> structure;
+//	@Autowired
+//	ResponseStructure<String> structure;
 
 	@Autowired
 	JwtUtilConfig jwtUtilConfig;
@@ -39,6 +39,7 @@ public class AnalyticsController {
 	public ResponseEntity<ResponseStructure<String>> getPostHistory() {
 		String token = request.getHeader("Authorization");
 		if (token == null || !token.startsWith("Bearer ")) {
+			ResponseStructure<String> structure=new ResponseStructure<String>();
 			structure.setCode(115);
 			structure.setMessage("Missing or invalid authorization token");
 			structure.setStatus("error");
@@ -54,9 +55,9 @@ public class AnalyticsController {
 
 	@GetMapping("/get/recent/post")
 	public ResponseEntity<ResponseStructure<String>> getRecentPosts(@RequestParam(required = false) String postId) {
-		System.out.println(postId);
 		String token = request.getHeader("Authorization");
 		if (token == null || !token.startsWith("Bearer ")) {
+			ResponseStructure<String> structure=new ResponseStructure<String>();
 			structure.setCode(115);
 			structure.setMessage("Missing or invalid authorization token");
 			structure.setStatus("error");
@@ -65,6 +66,7 @@ public class AnalyticsController {
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.UNAUTHORIZED);
 		}
 		if (postId == null) {
+			ResponseStructure<String> structure=new ResponseStructure<String>();
 			structure.setCode(HttpStatus.BAD_REQUEST.value());
 			structure.setMessage("Required PostId");
 			structure.setStatus("error");
@@ -82,6 +84,7 @@ public class AnalyticsController {
 	public ResponseEntity<ResponseStructure<String>> getPostHistory20Images() {
 		String token = request.getHeader("Authorization");
 		if (token == null || !token.startsWith("Bearer ")) {
+			ResponseStructure<String> structure=new ResponseStructure<String>();
 			structure.setCode(115);
 			structure.setMessage("Missing or invalid authorization token");
 			structure.setStatus("error");
@@ -97,9 +100,9 @@ public class AnalyticsController {
 	
 	@GetMapping("/view/analytics")
 	public ResponseEntity<ResponseStructure<String>> viewAnalytics(@RequestParam String pid) {
-		System.out.println(pid);
 		String token = request.getHeader("Authorization");
 		if (token == null || !token.startsWith("Bearer ")) {
+			ResponseStructure<String> structure=new ResponseStructure<String>();
 			structure.setCode(115);
 			structure.setMessage("Missing or invalid authorization token");
 			structure.setStatus("error");
@@ -108,6 +111,7 @@ public class AnalyticsController {
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.UNAUTHORIZED);
 		}
 		if (pid == null) {
+			ResponseStructure<String> structure=new ResponseStructure<String>();
 			structure.setCode(HttpStatus.BAD_REQUEST.value());
 			structure.setMessage("Required PostId");
 			structure.setStatus("error");

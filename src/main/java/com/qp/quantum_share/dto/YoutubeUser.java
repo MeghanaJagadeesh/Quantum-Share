@@ -13,18 +13,20 @@ import lombok.Data;
 @Entity
 @Data
 @Component
-@Table(name = "telegramuser")
-public class TelegramUser {
-
+@Table(name = "youtubeuser")
+public class YoutubeUser {
+	
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private int telegramId;
-	private String telegramCode;
-	private long telegramChatId;
-	private String telegramGroupName;
-	private int telegramGroupMembersCount;
-	
-	@Column(length = 4000)
-	private String telegramProfileUrl;
-	
+	private int youtubeId;
+	private String youtubeChannelId;
+	private String channelName;
+    private int subscriberCount;
+    
+    @Column(length = 4000)
+    private String channelImageUrl;
+    
+    @Column(length = 2000)
+	private String youtubeUserAccessToken;
+
 }

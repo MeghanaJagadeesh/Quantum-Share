@@ -12,11 +12,13 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
 import lombok.Data;
 
 @Entity
 @Component
 @Data
+@Table(name = "linkedinprofile")
 public class LinkedInProfileDto {
 
 	 	@Id
@@ -31,8 +33,6 @@ public class LinkedInProfileDto {
 	    @Column(length = 1000)
 	    private String linkedinProfileAccessToken;
 
-	    @OneToMany(mappedBy = "profile", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-	    private List<LinkedInPageDto> pages;
 
 
 }

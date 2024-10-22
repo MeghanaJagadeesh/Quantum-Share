@@ -12,6 +12,8 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Scope;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -69,7 +71,11 @@ public class ConfigurationClass {
 
 	@Bean
 	public RestTemplate getRestTemplate() {
-		return new RestTemplate();
+		SimpleClientHttpRequestFactory  factory = new SimpleClientHttpRequestFactory();
+	    factory.setConnectTimeout(5000);  
+	    factory.setReadTimeout(30000);    
+
+	    return new RestTemplate(factory);
 	}
 
 	@Bean

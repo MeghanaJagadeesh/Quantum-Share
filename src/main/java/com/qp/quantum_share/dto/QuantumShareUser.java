@@ -10,10 +10,12 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
 import lombok.Data;
 
 @Data
 @Entity
+@Table(name = "quantumshareuser")
 public class QuantumShareUser {
 
 	@Id
@@ -30,7 +32,6 @@ public class QuantumShareUser {
 	private LocalDate signUpDate;
 	private String profilePic;
 	private boolean trial;
-	private int credit;
 
 	@OneToOne(cascade = CascadeType.ALL)
 	private SocialAccounts socialAccounts;
@@ -40,5 +41,8 @@ public class QuantumShareUser {
 
 	@OneToMany(cascade = CascadeType.ALL)
 	private List<SocialMediaPosts> posts;
+
+	@OneToOne(cascade = CascadeType.ALL)
+	private CreditSystem creditSystem;
 
 }
