@@ -1,5 +1,7 @@
 package com.qp.quantum_share.dto;
 
+import java.time.Instant;
+
 import org.springframework.stereotype.Component;
 
 import jakarta.persistence.Column;
@@ -28,5 +30,10 @@ public class YoutubeUser {
     
     @Column(length = 2000)
 	private String youtubeUserAccessToken;
+    
+    @Column(length = 2000) 
+    private String youtubeUserRefreshToken;
+    
+    private Instant ytUserTokenIssuedTime;
 
 }

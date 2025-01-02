@@ -83,6 +83,9 @@ public class QuantumShareUserService {
 
 	@Autowired
 	CommonMethod commonMethod;
+	
+	@Autowired
+	YoutubeService youtubeService;
 
 	public ResponseEntity<ResponseStructure<String>> login(String emph, String password) {
 		ResponseStructure<String> structure = new ResponseStructure<String>();
@@ -521,18 +524,22 @@ public class QuantumShareUserService {
 		userTracking.applyCredit(user);
 		ResponseEntity<ResponseStructure<Map<String, String>>> serviceResponse = redditService
 				.checkAndRefreshAccessToken(user);
+		ResponseEntity<ResponseStructure<Map<String, String>>> ytServiceResponse = youtubeService
+				.ytCheckAndRefreshAccessToken(user);
 		System.out.println("redit : " + serviceResponse);
-		Map<String, Object> usermap = configure.getMap();
-		usermap.put("userId", user.getUserId());
-		usermap.put("username", user.getFirstName() + " " + user.getLastName());
-		usermap.put("email", user.getEmail());
-		usermap.put("profilepic", user.getProfilePic());
-		usermap.put("socialAccounts", user.getSocialAccounts());
-		usermap.put("credit", user.getCreditSystem().getRemainingCredit());
+//		Map<String, Object> usermap = configure.getMap();
+//		usermap.put("userId", user.getUserId());
+//		usermap.put("username", user.getFirstName() + " " + user.getLastName());
+//		usermap.put("email", user.getEmail());
+//		usermap.put("profilepic", user.getProfilePic());
+//		usermap.put("socialAccounts", user.getSocialAccounts());
+//		usermap.put("credit", user.getCreditSystem().getRemainingCredit());
 
 		Map<String, Object> map = configure.getMap();
-		map.put("user", usermap);
-//		map.put("credit", user.getCreditSystem().getRemainingCredit());)
+//		map.put("user", usermap);
+		map.put("credit", user.getCreditSystem().getRemainingCredit());
+		map.put("trail", user.isTrial());
+//		map.put("subscribe", user.get)
 		map.put("remainingdays", calculateRemainingPackageDays(user));
 		System.out.println(map);
 		structure.setData(map);
@@ -1094,7 +1101,7 @@ public class QuantumShareUserService {
 		structure.setMessage(null);
 		structure.setStatus("success");
 		structure.setData(data);
-		return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
+		return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
 	
 	}
 }

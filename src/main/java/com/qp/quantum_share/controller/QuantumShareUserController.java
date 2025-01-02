@@ -144,7 +144,6 @@ public class QuantumShareUserController {
 	public ResponseEntity<ResponseStructure<String>> fetchConnectedFB() {
 		Object userId = commonMethod.validateToken(request.getHeader("Authorization"));
 		return quantumShareUserService.fetchConnectedFb(Integer.parseInt(userId.toString()));
-
 	}
 
 	@GetMapping("/connected/socialmedia/instagram")

@@ -377,7 +377,7 @@ public class PostController {
 			responseStructure.setData(null);
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(responseStructure);
 		}
-		return postServices.PostOnReddit(subreddit, user.getSocialAccounts(), mediaPost, mediaFile);
+		return postServices.PostOnReddit(subreddit, user.getSocialAccounts(), mediaPost, mediaFile,user);
 	}
 
 }

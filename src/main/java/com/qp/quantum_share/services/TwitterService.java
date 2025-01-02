@@ -2,6 +2,11 @@ package com.qp.quantum_share.services;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
 
@@ -24,6 +29,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.qp.quantum_share.configuration.ConfigurationClass;
 import com.qp.quantum_share.dao.QuantumShareUserDao;
+import com.qp.quantum_share.dto.CreditSystem;
 import com.qp.quantum_share.dto.MediaPost;
 import com.qp.quantum_share.dto.QuantumShareUser;
 import com.qp.quantum_share.dto.SocialAccounts;
@@ -54,8 +60,8 @@ public class TwitterService {
 	@Value("${twitter.scope}")
 	private String scope;
 
-	@Value("${twitter.code_challenge}")
-	private String code_challenge;
+//	@Value("${twitter.code_challenge}")
+//	private String code_challenge;
 
 	@Value("${twitter.consumerKey}")
 	private String consumerKey;
@@ -101,12 +107,20 @@ public class TwitterService {
 	@Autowired
 	ErrorResponse errorResponse;
 
+	@Autowired
+	AnalyticsPostService analyticsPostService;
+	
+	String codeVerifier;
+	String codeChallenge;
+	
+
 	public ResponseEntity<ResponseStructure<String>> getAuthorizationUrl(QuantumShareUser user) {
+		generatePKCEValues();
 		String apiUrl = "https://twitter.com/i/oauth2/authorize";
 		String state = generateStateValue(user.getUserId());
 		String ouath = apiUrl + "?response_type=code&client_id=" + client_id + "&redirect_uri=" + redirect_uri
-				+ "&scope=" + scope + "&state=" + state + "&code_challenge=" + code_challenge
-				+ "&code_challenge_method=" + code_challenge_method;
+				+ "&scope=" + scope + "&state=" + state + "&code_challenge=" + codeChallenge
+				+ "&code_challenge_method=S256";
 		structure.setCode(HttpStatus.OK.value());
 		structure.setStatus("success");
 		structure.setMessage("oauth_url generated successfully");
@@ -118,6 +132,25 @@ public class TwitterService {
 	public static String generateStateValue(int i) {
 		return i + UUID.randomUUID().toString();
 	}
+	
+	private void generatePKCEValues() {
+	    try {
+	        // Generate the codeVerifier as a random string (32 bytes)
+	        this.codeVerifier = Base64.getUrlEncoder().withoutPadding().encodeToString(
+	                SecureRandom.getInstanceStrong().generateSeed(32)
+	        );
+
+	        // Create the codeChallenge by applying SHA-256 hash to the codeVerifier
+	        byte[] digest = MessageDigest.getInstance("SHA-256").digest(codeVerifier.getBytes(StandardCharsets.US_ASCII));
+	        this.codeChallenge = Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+
+	        System.out.println(codeVerifier + " " + codeChallenge);  // Just to verify they match
+	    } catch (NoSuchAlgorithmException e) {
+	        throw new RuntimeException("Error generating PKCE values", e);
+	    }
+	}
+
+	
 
 	public ResponseEntity<ResponseStructure<String>> verifyToken(String code, QuantumShareUser user) {
 //		try {
@@ -128,14 +161,16 @@ public class TwitterService {
 		multiValueMap.add("code", code);
 		multiValueMap.add("grant_type", "authorization_code");
 		multiValueMap.add("redirect_uri", redirect_uri);
-		multiValueMap.add("code_verifier", code_challenge);
+		multiValueMap.add("code_verifier", codeVerifier);
 		multiValueMap.add("client_id", client_id);
 		HttpEntity<MultiValueMap<String, Object>> httpRequest = configurationClass.getHttpEntityWithMap(multiValueMap,
 				headers);
+		System.out.println("body : " + httpRequest.getBody().toString());
 		ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.POST, httpRequest, JsonNode.class);
+		System.out.println("res headers : "+response.getHeaders().toString());
 		if (response.getStatusCode().is2xxSuccessful()) {
-
 			JsonNode responseBody = response.getBody();
+			System.out.println("res  "+responseBody);
 			String access_token = responseBody.get("access_token").asText();
 			String refresh_token = responseBody.get("refresh_token").asText();
 			long expires_in = responseBody.get("expires_in").asLong();
@@ -149,7 +184,6 @@ public class TwitterService {
 			structure.setStatus("error");
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.INTERNAL_SERVER_ERROR);
 		}
-
 	}
 
 	private ResponseEntity<ResponseStructure<String>> saveTwitterUser(String tweetUser, QuantumShareUser user,
@@ -233,6 +267,7 @@ public class TwitterService {
 			HttpEntity<String> httpRequest = configurationClass.getHttpEntity(headers);
 			ResponseEntity<String> response = restTemplate.exchange(apiUrl, HttpMethod.GET, httpRequest, String.class);
 			if (response.getStatusCode().is2xxSuccessful()) {
+				System.out.println("inside if : "+response.getBody());
 				return response.getBody();
 			} else {
 				return null;
@@ -243,165 +278,13 @@ public class TwitterService {
 	}
 
 	public File convertMultipartFileToFile(MultipartFile multipartFile) throws java.io.IOException {
-		File file = new File(multipartFile.getOriginalFilename()+""+UUID.randomUUID());
+		File file = new File(multipartFile.getOriginalFilename() + "" + UUID.randomUUID());
 		try (FileOutputStream fos = new FileOutputStream(file)) {
 			fos.write(multipartFile.getBytes());
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		return file;
-	}
-
-	public ResponseEntity<ResponseWrapper> postOnTwitter(MediaPost mediaPost, MultipartFile mediaFile,
-			TwitterUser twitteruser, QuantumShareUser user) throws TwitterException {
-		if (mediaFile.getContentType().startsWith("image")) {
-			System.out.println(mediaFile.getContentType());
-			if (mediaFile.getContentType().equals("image/jpeg") || mediaFile.getContentType().equals("image/png")
-					|| mediaFile.getContentType().equals("image/jpg")|| mediaFile.getContentType().equals("image/webp")) {
-			return postImageOnTwitter(mediaPost, mediaFile, twitteruser, user);
-			} else {
-				structure.setCode(HttpStatus.BAD_REQUEST.value());
-				structure.setMessage("Invalid File Type. Accepted image types are JPG, PNG, and JPEG.");
-				structure.setStatus("error");
-				structure.setData(null);
-				structure.setPlatform("twitter");
-				return new ResponseEntity<ResponseWrapper>(configurationClass.getResponseWrapper(structure),
-						HttpStatus.BAD_REQUEST);
-			}
-		} else if (mediaFile.getContentType().startsWith("video")) {
-			if (mediaFile.getContentType().equals("video/mp4")||mediaFile.getContentType().equals("video/quicktime")) {
-			return postVideoOnTwitter(mediaPost, mediaFile, twitteruser, user);
-			} else {
-				structure.setCode(HttpStatus.BAD_REQUEST.value());
-				structure.setMessage("Invalid File Type. Accepted video types .mp4 and .mov");
-				structure.setStatus("error");
-				structure.setData(null);
-				structure.setPlatform("instagram");
-				return new ResponseEntity<ResponseWrapper>(configurationClass.getResponseWrapper(structure),
-						HttpStatus.BAD_REQUEST);
-			}
-		} else {
-			structure.setCode(HttpStatus.BAD_REQUEST.value());
-			structure.setMessage("Invalid File Type");
-			structure.setStatus("error");
-			structure.setData(null);
-			structure.setPlatform("twitter");
-			return new ResponseEntity<ResponseWrapper>(configurationClass.getResponseWrapper(structure),
-					HttpStatus.BAD_REQUEST);
-		}
-	}
-
-	private ResponseEntity<ResponseWrapper> postVideoOnTwitter(MediaPost mediaPost, MultipartFile mediaFile,
-			TwitterUser twitteruser2, QuantumShareUser user) throws TwitterException {
-		try {
-			Twitter twitter = Twitter.newBuilder().oAuthConsumer(consumerKey, consumerSecret)
-					.oAuthAccessToken(accessToken, accessTokenSecret).build();
-			System.out.println("twitter 1 : " + twitter);
-			UploadedMedia response = twitter.v1().tweets().uploadMediaChunked(mediaFile.getOriginalFilename(),
-					mediaFile.getInputStream());
-			System.err.println("res : " + response);
-			long mediaId = response.getMediaId();
-			System.out.println("mediaid : " + mediaId);
-			if (mediaId != 0) {
-				System.out.println("if");
-				return postTweet(mediaId, mediaPost, twitteruser2, user);
-
-			} else {
-				structure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
-				structure.setMessage("Something went wrong unable to post media on Twitter!!");
-				structure.setPlatform("twitter");
-				structure.setStatus("error");
-				structure.setData(null);
-				return new ResponseEntity<ResponseWrapper>(configurationClass.getResponseWrapper(structure),
-						HttpStatus.INTERNAL_SERVER_ERROR);
-			}
-		} catch (NullPointerException e) {
-			throw new CommonException(e.getMessage());
-		} catch (TwitterException e) {
-			e.printStackTrace();
-			throw new TwitterException("Error while making OAuth request", e);
-		} catch (java.io.IOException e) {
-			throw new CommonException(e.getMessage());
-		}
-
-	}
-
-	private ResponseEntity<ResponseWrapper> postImageOnTwitter(MediaPost mediaPost, MultipartFile mediaFile,
-			TwitterUser twitteruser, QuantumShareUser user) throws TwitterException {
-		try {
-			Twitter twitter = Twitter.newBuilder().oAuthConsumer(consumerKey, consumerSecret)
-					.oAuthAccessToken(accessToken, accessTokenSecret).build();
-			System.out.println(twitter);
-			File tempfile = convertMultipartFileToFile(mediaFile);
-			UploadedMedia response = twitter.v1().tweets().uploadMedia(tempfile);
-			System.out.println(response);
-			long mediaId = response.getMediaId();
-			System.out.println(mediaId);
-			if (mediaId != 0) {
-				ResponseEntity<ResponseWrapper> resp = postTweet(mediaId, mediaPost, twitteruser, user);
-				tempfile.delete();
-				return resp;
-
-			} else {
-				structure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
-				structure.setMessage("Something went wrong unable to post media on Twitter!!");
-				structure.setPlatform("twitter");
-				structure.setStatus("error");
-				structure.setData(null);
-				return new ResponseEntity<ResponseWrapper>(configurationClass.getResponseWrapper(structure),
-						HttpStatus.INTERNAL_SERVER_ERROR);
-			}
-		} catch (NullPointerException e) {
-			throw new CommonException(e.getMessage());
-		} catch (TwitterException e) {
-			e.printStackTrace();
-			throw new TwitterException("Error while making OAuth request", e);
-		} catch (java.io.IOException e) {
-			throw new CommonException(e.getMessage());
-		}
-
-	}
-
-	private ResponseEntity<ResponseWrapper> postTweet(long mediaId, MediaPost mediaPost, TwitterUser twitteruser2,
-			QuantumShareUser user) {
-		try {
-			if (mediaPost.getCaption() == null) {
-				mediaPost.setCaption(" ");
-			}
-			String apiUrl = "https://api.twitter.com/2/tweets";
-			String access_token = twitteruser2.getAccess_token();
-			if (isAccessTokenExpired(twitteruser2)) {
-				access_token = generateAccessToken(twitteruser2, user);
-			}
-			headers.setContentType(MediaType.APPLICATION_JSON);
-			headers.setBearerAuth(access_token);
-			String requestBody = String.format("{\"text\": \"%s\", \"media\": {\"media_ids\": [\"%s\"]}}",
-					mediaPost.getCaption(), mediaId);
-
-			HttpEntity<String> httpRequest = configurationClass.getHttpEntity(requestBody, headers);
-			ResponseEntity<JsonNode> response = restTemplate.exchange(apiUrl, HttpMethod.POST, httpRequest,
-					JsonNode.class);
-			if (response.getStatusCode().is2xxSuccessful()) {
-				successResponse.setCode(HttpStatus.OK.value());
-				successResponse.setMessage("Posted On Twitter");
-				successResponse.setStatus("success");
-				successResponse.setData(response.getBody().get("data"));
-				successResponse.setPlatform("twitter");
-				return new ResponseEntity<ResponseWrapper>(configurationClass.getResponseWrapper(successResponse),
-						HttpStatus.OK);
-			} else {
-				errorResponse.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
-				errorResponse.setMessage("Request Failed");
-				errorResponse.setStatus("error");
-				errorResponse.setData(response.getBody());
-				errorResponse.setPlatform("twitter");
-				return new ResponseEntity<ResponseWrapper>(configurationClass.getResponseWrapper(errorResponse),
-						HttpStatus.INTERNAL_SERVER_ERROR);
-			}
-		} catch (NullPointerException e) {
-			throw new CommonException(e.getMessage());
-		}
-
 	}
 
 	public boolean isAccessTokenExpired(TwitterUser twitteruser2) {
@@ -449,6 +332,210 @@ public class TwitterService {
 			throw new CommonException(e.getMessage());
 		}
 
+	}
+
+	// posting
+	public ResponseEntity<ResponseWrapper> postOnTwitter(MediaPost mediaPost, MultipartFile mediaFile,
+			TwitterUser twitteruser, QuantumShareUser user, int userId) throws TwitterException {
+		if (mediaFile.getContentType().startsWith("image")) {
+			System.out.println(mediaFile.getContentType());
+			if (mediaFile.getContentType().equals("image/jpeg") || mediaFile.getContentType().equals("image/png")
+					|| mediaFile.getContentType().equals("image/jpg")
+					|| mediaFile.getContentType().equals("image/webp")) {
+				return postImageOnTwitter(mediaPost, mediaFile, twitteruser, userId);
+			} else {
+				structure.setCode(HttpStatus.BAD_REQUEST.value());
+				structure.setMessage("Invalid File Type. Accepted image types are JPG, PNG, and JPEG.");
+				structure.setStatus("error");
+				structure.setData(null);
+				structure.setPlatform("twitter");
+				return new ResponseEntity<ResponseWrapper>(configurationClass.getResponseWrapper(structure),
+						HttpStatus.BAD_REQUEST);
+			}
+		} else if (mediaFile.getContentType().startsWith("video")) {
+			if (mediaFile.getContentType().equals("video/mp4")
+					|| mediaFile.getContentType().equals("video/quicktime")) {
+				return postVideoOnTwitter(mediaPost, mediaFile, twitteruser, userId);
+			} else {
+				structure.setCode(HttpStatus.BAD_REQUEST.value());
+				structure.setMessage("Invalid File Type. Accepted video types .mp4 and .mov");
+				structure.setStatus("error");
+				structure.setData(null);
+				structure.setPlatform("instagram");
+				return new ResponseEntity<ResponseWrapper>(configurationClass.getResponseWrapper(structure),
+						HttpStatus.BAD_REQUEST);
+			}
+		} else {
+			structure.setCode(HttpStatus.BAD_REQUEST.value());
+			structure.setMessage("Invalid File Type");
+			structure.setStatus("error");
+			structure.setData(null);
+			structure.setPlatform("twitter");
+			return new ResponseEntity<ResponseWrapper>(configurationClass.getResponseWrapper(structure),
+					HttpStatus.BAD_REQUEST);
+		}
+	}
+
+	private ResponseEntity<ResponseWrapper> postVideoOnTwitter(MediaPost mediaPost, MultipartFile mediaFile,
+			TwitterUser twitteruser2, int userId) throws TwitterException {
+		try {
+			Twitter twitter = Twitter.newBuilder().oAuthConsumer(consumerKey, consumerSecret)
+					.oAuthAccessToken(accessToken, accessTokenSecret).build();
+			System.out.println("twitter 1 : " + twitter);
+			UploadedMedia response = twitter.v1().tweets().uploadMediaChunked(mediaFile.getOriginalFilename(),
+					mediaFile.getInputStream());
+			System.err.println("res : " + response);
+			long mediaId = response.getMediaId();
+			System.out.println("mediaid : " + mediaId);
+			if (mediaId != 0) {
+				System.out.println("if");
+				return postTweet(mediaId, mediaPost, twitteruser2, userId);
+
+			} else {
+				structure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+				structure.setMessage("Something went wrong unable to post media on Twitter!!");
+				structure.setPlatform("twitter");
+				structure.setStatus("error");
+				structure.setData(null);
+				return new ResponseEntity<ResponseWrapper>(configurationClass.getResponseWrapper(structure),
+						HttpStatus.INTERNAL_SERVER_ERROR);
+			}
+		} catch (NullPointerException e) {
+			throw new CommonException(e.getMessage());
+		} catch (TwitterException e) {
+			e.printStackTrace();
+			throw new TwitterException("Error while making OAuth request", e);
+		} catch (java.io.IOException e) {
+			throw new CommonException(e.getMessage());
+		}
+
+	}
+
+	private ResponseEntity<ResponseWrapper> postImageOnTwitter(MediaPost mediaPost, MultipartFile mediaFile,
+			TwitterUser twitteruser, int userId) throws TwitterException {
+		try {
+			Twitter twitter = Twitter.newBuilder().oAuthConsumer(consumerKey, consumerSecret)
+					.oAuthAccessToken(accessToken, accessTokenSecret).build();
+			System.out.println(twitter);
+			File tempfile = convertMultipartFileToFile(mediaFile);
+			UploadedMedia response = twitter.v1().tweets().uploadMedia(tempfile);
+			System.out.println(response);
+			long mediaId = response.getMediaId();
+			System.out.println(mediaId);
+			if (mediaId != 0) {
+				ResponseEntity<ResponseWrapper> resp = postTweet(mediaId, mediaPost, twitteruser, userId);
+				tempfile.delete();
+				return resp;
+
+			} else {
+				structure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+				structure.setMessage("Something went wrong unable to post media on Twitter!!");
+				structure.setPlatform("twitter");
+				structure.setStatus("error");
+				structure.setData(null);
+				return new ResponseEntity<ResponseWrapper>(configurationClass.getResponseWrapper(structure),
+						HttpStatus.INTERNAL_SERVER_ERROR);
+			}
+		} catch (NullPointerException e) {
+			throw new CommonException(e.getMessage());
+		} catch (TwitterException e) {
+			e.printStackTrace();
+			throw new TwitterException("Error while making OAuth request", e);
+		} catch (java.io.IOException e) {
+			throw new CommonException(e.getMessage());
+		}
+
+	}
+
+	private ResponseEntity<ResponseWrapper> postTweet(long mediaId, MediaPost mediaPost, TwitterUser twitteruser2,
+			int userId) {
+		try {
+			QuantumShareUser user = userDao.fetchUser(userId);
+
+			if (mediaPost.getCaption() == null) {
+				mediaPost.setCaption(" ");
+			}
+			String apiUrl = "https://api.twitter.com/2/tweets";
+			String access_token = twitteruser2.getAccess_token();
+			if (isAccessTokenExpired(twitteruser2)) {
+				access_token = generateAccessToken(twitteruser2, user);
+			}
+			headers.setContentType(MediaType.APPLICATION_JSON);
+			headers.setBearerAuth(access_token);
+			String requestBody = String.format("{\"text\": \"%s\", \"media\": {\"media_ids\": [\"%s\"]}}",
+					mediaPost.getCaption(), mediaId);
+
+			HttpEntity<String> httpRequest = configurationClass.getHttpEntity(requestBody, headers);
+			ResponseEntity<JsonNode> response = restTemplate.exchange(apiUrl, HttpMethod.POST, httpRequest,
+					JsonNode.class);
+			if (response.getStatusCode().is2xxSuccessful()) {
+				CreditSystem credits = user.getCreditSystem();
+				credits.setRemainingCredit(credits.getRemainingCredit() - 1);
+				user.setCreditSystem(credits);
+				userDao.save(user);
+				JsonNode res = response.getBody();
+
+				savePost(res, twitteruser2, user);
+				successResponse.setCode(HttpStatus.OK.value());
+				successResponse.setMessage("Posted On Twitter");
+				successResponse.setStatus("success");
+				successResponse.setData(response.getBody().get("data"));
+				successResponse.setPlatform("twitter");
+				return new ResponseEntity<ResponseWrapper>(configurationClass.getResponseWrapper(successResponse),
+						HttpStatus.OK);
+			} else {
+				errorResponse.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+				errorResponse.setMessage("Request Failed");
+				errorResponse.setStatus("error");
+				errorResponse.setData(response.getBody());
+				errorResponse.setPlatform("twitter");
+				return new ResponseEntity<ResponseWrapper>(configurationClass.getResponseWrapper(errorResponse),
+						HttpStatus.INTERNAL_SERVER_ERROR);
+			}
+		} catch (NullPointerException e) {
+			throw new CommonException(e.getMessage());
+		}
+
+	}
+
+	public Object savePost(JsonNode res, TwitterUser twitteruser2, QuantumShareUser user) {
+		try {
+			System.out.println(res);
+			System.out.println("jhgfghjk");
+			String postId = res.at("/data/id").asText();
+			String url = "https://api.twitter.com/2/tweets/" + postId
+					+ "?expansions=attachments.media_keys&media.fields=url";
+
+			HttpHeaders headers = new HttpHeaders();
+			headers.setBearerAuth(twitteruser2.getAccess_token());
+
+			HttpEntity<String> requestEntity = configurationClass.getHttpEntity(headers);
+			ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.GET, requestEntity,
+					JsonNode.class);
+			System.out.println("res headers : "+response.getHeaders());
+			String type = null;
+			String mediaUrl = null;
+			if (response.getStatusCode().is2xxSuccessful()) {
+				JsonNode mediaArray = response.getBody().at("/includes/media");
+				System.out.println("media arr : "+mediaArray);
+				for (JsonNode mediaNode : mediaArray) {
+					type = mediaNode.get("type").asText(null); 
+					mediaUrl = mediaNode.get("url").asText(null); 
+				}
+				System.out.println("Type: " + type + ", URL: " + mediaUrl);
+			}
+			if(type.equals("photo"))
+				type="image";
+			else if(type.equals("video"))
+				type="video";
+		analyticsPostService.savePost(postId, twitteruser2.getTwitterUserId()+"", user, type, "twitter",
+				twitteruser2.getUserName(), mediaUrl);
+		} catch (Exception e) {
+			System.out.println("catch block");
+			e.printStackTrace();
+			return null;
+		}
+		return null;
 	}
 
 }

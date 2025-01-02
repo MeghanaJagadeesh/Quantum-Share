@@ -1,11 +1,12 @@
 package com.qp.quantum_share.services;
 
-import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -66,6 +67,9 @@ public class RedditService {
 
 	@Autowired
 	QuantumShareUserDao userDao;
+	
+	@Autowired
+	AnalyticsPostService analyticsPostService;
 
 	private HttpHeaders headers = new HttpHeaders();
 	private MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
@@ -489,56 +493,96 @@ public class RedditService {
 	}
 
 	// REDDIT LINK POSTING
-	public ResponseStructure<JsonNode> PostOnReddit(String subreddit, String title, MultipartFile mediafile,
-			RedditDto redditUser) {
-		System.out.println("post on Reddit");
-		String fileUrl = postOnServer.uploadFile(mediafile, "posts/");
-		
-		System.out.println(fileUrl);
+		public ResponseStructure<JsonNode> PostOnReddit(String subreddit, String title, QuantumShareUser user, MultipartFile mediafile,
+		        RedditDto redditUser) {
+		    System.out.println("post on Reddit");
+		    String fileUrl = postOnServer.uploadFile(mediafile, "posts/");
 
-		String endpoint = "https://oauth.reddit.com/api/submit";
-		String accessToken = redditUser.getRedditAccessToken();
+		    System.out.println(fileUrl);
 
-		// HttpHeaders headers = new HttpHeaders();
-		headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-		headers.set("Authorization", "Bearer " + accessToken);
-		headers.set("User-Agent", userAgent);
+		    String endpoint = "https://oauth.reddit.com/api/submit";
+		    String accessToken = redditUser.getRedditAccessToken();
 
-		MultiValueMap<String, String> bodyMap = new LinkedMultiValueMap<>();
-		bodyMap.add("sr", subreddit);
-		bodyMap.add("kind", "link");
-		bodyMap.add("title", title);
-		bodyMap.add("url", fileUrl);
+		    // HttpHeaders headers = new HttpHeaders();
+		    headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+		    headers.set("Authorization", "Bearer " + accessToken);
+		    headers.set("User-Agent", userAgent);
 
-		HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(bodyMap, headers);
+		    MultiValueMap<String, String> bodyMap = new LinkedMultiValueMap<>();
+		    bodyMap.add("sr", subreddit);
+		    bodyMap.add("kind", "link");
+		    bodyMap.add("title", title);
+		    bodyMap.add("url", fileUrl);
 
-		ResponseEntity<String> response = restTemplate.exchange(endpoint, HttpMethod.POST, entity, String.class);
+		    HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(bodyMap, headers);
 
-		ResponseStructure<JsonNode> responseStructure = new ResponseStructure<>();
-		try {
-			JsonNode jsonNode = mapper.readTree(response.getBody());
-			if (response.getStatusCode().is2xxSuccessful() && jsonNode.path("success").asBoolean()) {
-				responseStructure.setMessage("Posted to reddit successfully");
-				responseStructure.setStatus("OK");
-				responseStructure.setCode(response.getStatusCode().value());
-				responseStructure.setPlatform("Reddit");
-				responseStructure.setData(jsonNode.get("success"));
-			} else {
-				responseStructure.setMessage("Failed to submit post");
-				responseStructure.setStatus("Error");
-				responseStructure.setCode(response.getStatusCode().value());
-				responseStructure.setPlatform("Reddit");
-				responseStructure.setData(jsonNode.get("success"));
-			}
-		} catch (IOException e) {
-			responseStructure.setMessage("Failed to parse response");
-			responseStructure.setStatus("Error");
-			responseStructure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
-			responseStructure.setPlatform("Reddit");
-			responseStructure.setData(null);
+		    ResponseStructure<JsonNode> responseStructure = new ResponseStructure<>(); // Use JsonNode as type
+
+		    try {
+		        // Make the request to Reddit API
+		        ResponseEntity<JsonNode> response = restTemplate.exchange(
+		            endpoint,
+		            HttpMethod.POST,
+		            entity,
+		            JsonNode.class
+		        );
+
+		        if (response.getStatusCode().is2xxSuccessful()) {
+		            JsonNode responseBody = response.getBody();
+
+		            // Extract post URL from response
+		            String redditUrl = null;
+		            JsonNode jqueryArray = responseBody.get("jquery");
+		            if (jqueryArray != null && jqueryArray.isArray()) {
+		                for (JsonNode node : jqueryArray) {
+		                    if (node.isArray() && node.size() >= 4) {
+		                        JsonNode innerArray = node.get(3);
+		                        if (innerArray.isArray() && innerArray.size() > 0) {
+		                            String potentialUrl = innerArray.get(0).asText();
+		                            if (potentialUrl.startsWith("https://www.reddit.com")) {
+		                                redditUrl = potentialUrl;
+		                                break;
+		                            }
+		                        }
+		                    }
+		                }
+		            }
+
+		            String postId = null;
+		            if (redditUrl != null) {
+		                // Extract post ID using regex
+		                Pattern pattern = Pattern.compile("/comments/([^/]+)/");
+		                Matcher matcher = pattern.matcher(redditUrl);
+		                if (matcher.find()) {
+		                    postId = matcher.group(1);
+		                }
+		            }
+
+		            if (postId != null) {
+		            	analyticsPostService.savePost(postId, " ", user, "image", "reddit",redditUser.getRedditUsername(), redditUrl);
+		                responseStructure.setMessage("Post submitted successfully with ID: " + postId);
+		            } else {
+		                responseStructure.setMessage("Post submitted successfully, but ID could not be extracted.");
+		            }
+
+		            responseStructure.setStatus("success");
+		            responseStructure.setPlatform("reddit");
+		            responseStructure.setCode(HttpStatus.OK.value());
+		            responseStructure.setData(responseBody.path("success"));
+		        } else {
+		            responseStructure.setMessage("Failed to submit post");
+		            responseStructure.setStatus("error");
+		            responseStructure.setCode(response.getStatusCode().value());
+		            responseStructure.setData(response.getBody().path("success"));
+		        }
+
+		    } catch (HttpClientErrorException e) {
+		        responseStructure.setMessage("Error submitting post: " + e.getStatusText());
+		        responseStructure.setStatus("error");
+		        responseStructure.setCode(e.getStatusCode().value());
+		        responseStructure.setData(null);
+		    }
+
+		    return responseStructure;
 		}
-
-		return responseStructure;
-	}
-
 }

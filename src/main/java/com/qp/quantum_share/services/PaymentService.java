@@ -144,6 +144,7 @@ public class PaymentService {
 			paymentList.add(paymentDetails);
 			subscription.setPayments(paymentList);
 			user.setSubscriptionDetails(subscription);
+			user.setTrial(false);
 			userDao.save(user);
 
 			Map<String, Object> map = configure.getMap();

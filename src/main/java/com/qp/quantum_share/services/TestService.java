@@ -2,108 +2,51 @@ package com.qp.quantum_share.services;
 
 
 
-import java.io.InputStream;
-import java.nio.channels.Channels;
-import java.nio.channels.WritableByteChannel;
-import java.util.Properties;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.client.RestTemplate;
 
-import com.jcraft.jsch.ChannelSftp;
-import com.jcraft.jsch.JSch;
-import com.jcraft.jsch.Session;
+import java.util.List;
 
 @Service
 public class TestService {
-	
-	private static final String SFTP_HOST = "pdx1-shared-a2-03.dreamhost.com";
-    private static final int SFTP_PORT = 22;
-    private static final String SFTP_USER = "dh_q2m9hh";
-    private static final String SFTP_PASSWORD = "SriKrishna@0700";
-    private static final String SFTP_DIRECTORY = "/home/dh_q2m9hh/quantumshare.quantumparadigm.in/posts/";
 
-    private final ExecutorService executorService = Executors.newFixedThreadPool(8); // Increased threads for higher parallelism
-    private final ConcurrentLinkedQueue<Session> sessionPool = new ConcurrentLinkedQueue<>();
+	// Replace with your actual WhatsApp Number ID
+	private static final String WHATSAPP_NUMBER_ID = "463018520236115";
 
-    private Session createSession() throws Exception {
-        JSch jsch = new JSch();
-        Session session = jsch.getSession(SFTP_USER, SFTP_HOST, SFTP_PORT);
-        session.setPassword(SFTP_PASSWORD);
+	// Update API URL with the number ID
+	private static final String API_URL = "https://graph.facebook.com/v21.0/" + WHATSAPP_NUMBER_ID + "/messages";
 
-        Properties config = new Properties();
-        config.put("StrictHostKeyChecking", "no");
-        config.put("Compression", "zlib@openssh.com");
-        session.setConfig(config);
-        session.connect();
-        
-        return session;
-    }
+	private static final String ACCESS_TOKEN = "EAAPPo51qkGcBO3AqnZAQwi9aJv0GlqAacP42Pea9geTOcZApKAFpzXVZCl5JnTMpZAWrBnb3BTyjpgsRTZBmoqwPQcDXcDCIHPHMDPBrzQxkTBbNqQoxQwFZA8O0RLsoX9OrHfZAwZCqNoCaeJUMZBV35xbZCy5lTpX4tOYapejrI0zQa5bdZAJROnqcoZBxqgDAxiLrAtR5jPErkoXZCIV2xiZCUZD";
 
-    private Session getSession() throws Exception {
-        Session session = sessionPool.poll();
-        return (session != null && session.isConnected()) ? session : createSession();
-    }
+	public void sendBulkMessages(List<String> phoneNumbers) {
+		RestTemplate restTemplate = new RestTemplate();
 
-    private void returnSession(Session session) {
-        if (session != null && session.isConnected()) {
-            sessionPool.offer(session);
-        } else {
-            closeSession(session);
-        }
-    }
+		for (String phone : phoneNumbers) {
+			try {
+				HttpHeaders headers = new HttpHeaders();
+				headers.setContentType(MediaType.APPLICATION_JSON);
+				headers.setBearerAuth(ACCESS_TOKEN);
 
-    private void closeSession(Session session) {
-        if (session != null && session.isConnected()) {
-            session.disconnect();
-        }
-    }
+				String requestBody = createMessageBody(phone);
+				HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
 
-    
-    public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file) {
-        try {
-            Future<ResponseEntity<String>> future = executorService.submit(() -> uploadFileToSftp(file));
-            return future.get();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return new ResponseEntity<>("Error: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
+				ResponseEntity<String> response = restTemplate.postForEntity(API_URL, request, String.class);
 
-    private ResponseEntity<String> uploadFileToSftp(MultipartFile file) {
-        Session session = null;
-        ChannelSftp channelSftp = null;
-        try {
-            session = getSession();
-            channelSftp = (ChannelSftp) session.openChannel("sftp");
-            channelSftp.connect();
+				if (response.getStatusCode() == HttpStatus.OK) {
+					System.out.println("Message sent successfully to: " + phone);
+				} else {
+					System.err.println("Failed to send message to: " + phone + " - " + response.getBody());
+				}
+			} catch (Exception e) {
+				System.err.println("Error sending message to: " + phone + " - " + e.getMessage());
+			}
+		}
+	}
 
-            String filename = UUID.randomUUID() + "_" + file.getOriginalFilename();
-            String uniqueFileName = SFTP_DIRECTORY + filename;
-
-            try (InputStream inputStream = file.getInputStream();
-                 WritableByteChannel outChannel = Channels.newChannel(channelSftp.put(uniqueFileName, ChannelSftp.OVERWRITE))) {
-                
-                // Streaming file content with minimal buffer overhead
-                inputStream.transferTo(Channels.newOutputStream(outChannel));
-
-                return new ResponseEntity<>("File uploaded successfully: https://quantumshare.quantumparadigm.in/posts/" + filename, HttpStatus.OK);
-            }
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return new ResponseEntity<>("Error: " + ex.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
-        } finally {
-            if (channelSftp != null) channelSftp.disconnect();
-            returnSession(session);
-        }
-    }
-
+	private String createMessageBody(String phoneNumber) {
+		return "{\n" + "  \"messaging_product\": \"whatsapp\",\n" + "  \"to\": \"" + phoneNumber + "\",\n"
+				+ "  \"type\": \"template\",\n" + "  \"template\": {\n" + "    \"name\": \"new_year_wish\",\n"
+				+ "    \"language\": { \"code\": \"en_US\" }\n" + "  }\n" + "}";
+	}
 }

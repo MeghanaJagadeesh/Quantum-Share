@@ -36,7 +36,7 @@ public class SocialMediaLogoutController {
 	SocialMediaLogoutService logoutService;
 
 	@Autowired
-	CommonMethod commonMethod;
+	CommonMethod commonMethod;	
 
 	@GetMapping("/disconnect/facebook")
 	public ResponseEntity<ResponseStructure<String>> disconnectFacebook() {

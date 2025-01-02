@@ -18,7 +18,7 @@ import com.qp.quantum_share.services.AnalyticsPostService;
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
-@RequestMapping("quatumshare/socialmedia")
+@RequestMapping("quantum-share/socialmedia")
 public class AnalyticsController {
 
 	@Autowired

@@ -6,6 +6,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,7 +31,9 @@ import com.qp.quantum_share.dao.QuantumShareUserDao;
 import com.qp.quantum_share.dto.FacebookPageDetails;
 import com.qp.quantum_share.dto.InstagramUser;
 import com.qp.quantum_share.dto.QuantumShareUser;
+import com.qp.quantum_share.dto.RedditDto;
 import com.qp.quantum_share.dto.SocialMediaPosts;
+import com.qp.quantum_share.dto.TwitterUser;
 import com.qp.quantum_share.dto.YoutubeUser;
 import com.qp.quantum_share.exception.CommonException;
 import com.qp.quantum_share.response.ResponseStructure;
@@ -80,6 +84,34 @@ public class AnalyticsPostService {
 		String formattedTime = localTime.format(formatter);
 		post.setPostTime(formattedTime);
 		post.setProfileName(profileName);
+		List<SocialMediaPosts> posts = qsuser.getPosts();
+		if (posts.isEmpty()) {
+			List<SocialMediaPosts> list = config.getListOfPost();
+			posts = list;
+			posts.add(post);
+		} else {
+			posts.add(post);
+		}
+		qsuser.setPosts(posts);
+		userDao.save(qsuser);
+	}
+
+	public void savePost(String id, String profileid, QuantumShareUser qsuser, String contentType, String platform,
+			String profileName, String imageUrl) {
+		SocialMediaPosts post = config.getsocialMediaPosts();
+		post.setPostid(id);
+		post.setMediaType(contentType);
+		post.setPlatformName(platform);
+		post.setPostDate(LocalDate.now());
+		post.setProfileId(profileid);
+
+		LocalTime localTime = LocalTime.now();
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ss");
+		String formattedTime = localTime.format(formatter);
+		post.setPostTime(formattedTime);
+		post.setProfileName(profileName);
+		post.setImageUrl(imageUrl);
+
 		List<SocialMediaPosts> posts = qsuser.getPosts();
 		if (posts.isEmpty()) {
 			List<SocialMediaPosts> list = config.getListOfPost();
@@ -233,7 +265,6 @@ public class AnalyticsPostService {
 		}
 	}
 
-	
 	public ResponseEntity<ResponseStructure<String>> getHistory(QuantumShareUser user) {
 		List<SocialMediaPosts> list = postsDao.getRecentPosts(user.getUserId());
 		ResponseStructure<String> structure = new ResponseStructure<String>();
@@ -278,6 +309,10 @@ public class AnalyticsPostService {
 				return instagramAnalytics(user, pid);
 			} else if (post.getPlatformName().equals("youtube")) {
 				return youtubeAnalytics(user, pid);
+			} else if (post.getPlatformName().equals("twitter")) {
+				return twitterAnalytics(user, pid);
+			} else if (post.getPlatformName().equals("reddit")) {
+				return redditAnalytics(user, pid);
 			}
 			return null;
 		} catch (JsonMappingException e) {
@@ -285,6 +320,65 @@ public class AnalyticsPostService {
 		} catch (JsonProcessingException e) {
 			throw new CommonException(e.getMessage());
 		}
+	}
+
+	private ResponseEntity<ResponseStructure<String>> twitterAnalytics(QuantumShareUser user, String pid) {
+		SocialMediaPosts post = postsDao.getPost(Integer.parseInt(pid));
+
+		TwitterUser twitterUser = user.getSocialAccounts().getTwitterUser();
+		if (twitterUser == null) {
+			ResponseStructure<String> structure = new ResponseStructure<>();
+			structure.setCode(HttpStatus.NOT_FOUND.value());
+			structure.setMessage("This post does not have an associated Twitter Profile.");
+			structure.setPlatform("twitter");
+			structure.setStatus("error");
+			structure.setData(null);
+			return new ResponseEntity<>(structure, HttpStatus.NOT_FOUND);
+		}
+		String apiUrl = "https://api.twitter.com/2/tweets?ids=" + post.getPostid()
+				+ "&tweet.fields=public_metrics&expansions=attachments.media_keys&media.fields=public_metrics";
+		System.out.println(apiUrl);
+		HttpHeaders headers = new HttpHeaders();
+		headers.setBearerAuth(twitterUser.getAccess_token());
+		HttpEntity<String> requestEntiry = config.getHttpEntity(headers);
+		ResponseEntity<JsonNode> response = restTemplate.exchange(apiUrl, HttpMethod.GET, requestEntiry,
+				JsonNode.class);
+		System.out.println(response.getBody());
+		JsonNode responseBody = response.getBody();
+		Map<String, Object> insight = config.getMap();
+		if (response.getStatusCode().is2xxSuccessful()) {
+			JsonNode publicMetrics = responseBody.path("data").get(0).path("public_metrics");
+			insight.put("retweetCount", publicMetrics.path("retweet_count").asInt());
+			insight.put("replyCount", publicMetrics.path("reply_count").asInt());
+			insight.put("likeCount", publicMetrics.path("like_count").asInt());
+			insight.put("bookmarkCount", publicMetrics.path("bookmark_count").asInt());
+			insight.put("impressionCount", publicMetrics.path("impression_count").asInt());
+
+			String text = responseBody.path("data").get(0).path("text").asText();
+
+			Pattern pattern = Pattern.compile("(.+?)\\s(https?://\\S+)$");
+			Matcher matcher = pattern.matcher(text);
+			String description = "";
+			String mediaUrl = "";
+
+			if (matcher.find()) {
+				description = matcher.group(1).trim();
+				mediaUrl = matcher.group(2).trim();
+			}
+			insight.put("full_picture", mediaUrl);
+			insight.put("media_type", post.getMediaType());
+			insight.put("description", description);
+
+		}
+		ResponseStructure<String> structure = new ResponseStructure<>();
+		structure.setCode(HttpStatus.OK.value());
+		structure.setData(insight);
+		structure.setMessage("YouTube Post analytics");
+		structure.setPlatform("youtube");
+		structure.setStatus("success");
+
+		return new ResponseEntity<>(structure, HttpStatus.OK);
+
 	}
 
 	private ResponseEntity<ResponseStructure<String>> youtubeAnalytics(QuantumShareUser user, String pid)
@@ -502,7 +596,7 @@ public class AnalyticsPostService {
 			String errorMessage = e.getResponseBodyAsString();
 			JsonNode json = objectMapper.readTree(errorMessage);
 			String mesg = json.get("error").get("message").asText();
-			System.out.println("mesg  "+mesg);
+			System.out.println("mesg  " + mesg);
 			System.out.println(post.getPostid());
 			if (mesg.contains("Unsupported get request. Object with ID")) {
 				user.getPosts().remove(post);
@@ -518,7 +612,7 @@ public class AnalyticsPostService {
 				return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
 			} else {
 				System.out.println(e.getResponseBodyAsString());
-				System.out.println(e.getClass()+" : "+e.getStatusText());
+				System.out.println(e.getClass() + " : " + e.getStatusText());
 				e.printStackTrace();
 				throw new CommonException(e.getMessage());
 			}
@@ -595,4 +689,71 @@ public class AnalyticsPostService {
 		}
 	}
 
+	public ResponseEntity<ResponseStructure<String>> redditAnalytics(QuantumShareUser user, String pid) {
+		ResponseStructure<String> responseStructure = new ResponseStructure<>();
+		SocialMediaPosts post = postsDao.getPost(Integer.parseInt(pid));
+		RedditDto redditDto = user.getSocialAccounts().getRedditDto();
+		if (redditDto == null) {
+			responseStructure.setMessage("No Reddit account linked");
+			responseStructure.setStatus("error");
+			responseStructure.setCode(HttpStatus.BAD_REQUEST.value());
+			responseStructure.setPlatform("Reddit");
+			return new ResponseEntity<ResponseStructure<String>>(responseStructure, HttpStatus.NOT_FOUND);
+		}
+
+		String accessToken = redditDto.getRedditAccessToken();
+		String url = "https://oauth.reddit.com/comments/" + post.getPostid();
+		System.out.println("1");
+		HttpHeaders headers = new HttpHeaders();
+		headers.set("Authorization", "Bearer " + accessToken);
+		headers.set("User-Agent", "web:NmIDntOHG8nO6qeCzU2wDw:v1.0.0(by /u/Quantum_1824)");
+
+		HttpEntity<String> entity = new HttpEntity<>(headers);
+
+		try {
+			System.out.println("2");
+			ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+			System.out.println("3 " + response.getBody());
+			// Parse response
+			ObjectMapper objectMapper = new ObjectMapper();
+			JsonNode rootNode = objectMapper.readTree(response.getBody());
+			System.out.println("root " + rootNode);
+			JsonNode postData = rootNode.get(0).get("data").get("children").get(0).get("data");
+			System.out.println(postData);
+			JsonNode commentData = rootNode.get(1).get("data").get("children");
+			System.out.println(commentData);
+			int ups = 0;
+			if (!commentData.isEmpty() || commentData != null) {
+				ups = commentData.get("ups").asInt();
+			}
+			int numComments = postData.get("num_comments").asInt();
+
+			int numCrossposts = postData.get("num_crossposts") != null ? postData.get("num_crossposts").asInt() : 0; // Fallback
+																														// to
+																														// 0
+			String subreddit = postData.get("subreddit").asText();
+			String postUrl = postData.get("url").asText();
+
+			// Build response data
+			Map<String, String> responseData = Map.of("num_comments", String.valueOf(numComments), "num_likes/ups",
+					String.valueOf(ups), "num_shares/crossposts", String.valueOf(numCrossposts), "subreddit", subreddit,
+					"post_url", postUrl);
+
+			responseStructure.setMessage("Data fetched successfully");
+			responseStructure.setStatus("success");
+			responseStructure.setCode(HttpStatus.OK.value());
+			responseStructure.setPlatform("Reddit");
+			responseStructure.setData(responseData);
+
+			return ResponseEntity.ok(responseStructure);
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			responseStructure.setMessage("Error fetching or processing Reddit data");
+			responseStructure.setStatus("error");
+			responseStructure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			responseStructure.setPlatform("Reddit");
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseStructure);
+		}
+	}
 }

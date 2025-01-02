@@ -180,8 +180,8 @@ public class PostService {
 				structure.setData(null);
 				return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure), HttpStatus.NOT_FOUND);
 			} else {
-				return twitterService.postOnTwitter(mediaPost, mediaFile, socialAccounts.getTwitterUser(), user);
-			}
+				return twitterService.postOnTwitter(mediaPost, mediaFile, socialAccounts.getTwitterUser(), user,user.getUserId());
+				}
 		}
 		return null;
 	}
@@ -399,7 +399,7 @@ public class PostService {
 		}
 	}
 
-	public ResponseEntity<ResponseStructure<JsonNode>> PostOnReddit(String subreddit, SocialAccounts socialAccounts, MediaPost mediaPost, MultipartFile mediafile) {
+	public ResponseEntity<ResponseStructure<JsonNode>> PostOnReddit(String subreddit, SocialAccounts socialAccounts, MediaPost mediaPost, MultipartFile mediafile, QuantumShareUser user) {
 		ResponseStructure<JsonNode> responseStructure = new ResponseStructure<>();
 		if(mediafile.isEmpty()||mediafile==null) {
 			responseStructure.setMessage("Invalid file type");
@@ -446,7 +446,7 @@ public class PostService {
 				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseStructure);
 			}
 			System.out.println("post service");
-			responseStructure = redditService.PostOnReddit(subreddit, title, mediafile, redditUser);
+			responseStructure = redditService.PostOnReddit(subreddit, title, user,mediafile, redditUser);
 			return ResponseEntity.status(responseStructure.getCode()).body(responseStructure);
 		} else {
 			responseStructure.setMessage("Please connect your Reddit account");
