@@ -35,7 +35,7 @@ public class AnalyticsController {
 
 	@Autowired
 	AnalyticsPostService analyticsPostService;
-	
+
 	@Autowired
 	CommonMethod commonMethod;
 
@@ -50,7 +50,7 @@ public class AnalyticsController {
 	public ResponseEntity<ResponseStructure<String>> getRecentPosts(@RequestParam(required = false) String postId) {
 		Object userId = commonMethod.validateToken(request.getHeader("Authorization"));
 		if (postId == null) {
-			ResponseStructure<String> structure=new ResponseStructure<String>();
+			ResponseStructure<String> structure = new ResponseStructure<String>();
 			structure.setCode(HttpStatus.BAD_REQUEST.value());
 			structure.setMessage("Required PostId");
 			structure.setStatus("error");
@@ -61,19 +61,19 @@ public class AnalyticsController {
 		QuantumShareUser user = userDao.fetchUser(Integer.parseInt(userId.toString()));
 		return analyticsPostService.getRecentPost(postId, user);
 	}
-	
+
 	@GetMapping("/history/viewMore")
 	public ResponseEntity<ResponseStructure<String>> getPostHistory20Images() {
 		Object userId = commonMethod.validateToken(request.getHeader("Authorization"));
 		QuantumShareUser user = userDao.fetchUser(Integer.parseInt(userId.toString()));
 		return analyticsPostService.getHistory20Images(user);
 	}
-	
+
 	@GetMapping("/view/analytics")
 	public ResponseEntity<ResponseStructure<String>> viewAnalytics(@RequestParam String pid) {
 		Object userId = commonMethod.validateToken(request.getHeader("Authorization"));
 		if (pid == null) {
-			ResponseStructure<String> structure=new ResponseStructure<String>();
+			ResponseStructure<String> structure = new ResponseStructure<String>();
 			structure.setCode(HttpStatus.BAD_REQUEST.value());
 			structure.setMessage("Required PostId");
 			structure.setStatus("error");
@@ -82,6 +82,22 @@ public class AnalyticsController {
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.BAD_REQUEST);
 		}
 		QuantumShareUser user = userDao.fetchUser(Integer.parseInt(userId.toString()));
-		return analyticsPostService.viewAnalytics(user,pid);
+		return analyticsPostService.viewAnalytics(user, pid);
+	}
+
+	@GetMapping("/get/graph/data")
+	public ResponseEntity<ResponseStructure<String>> getCompleteAnalytics() {
+		ResponseStructure<String> structure = new ResponseStructure<String>();
+		Object userId = commonMethod.validateToken(request.getHeader("Authorization"));
+		QuantumShareUser user = userDao.fetchUser(Integer.parseInt(userId.toString()));
+		if (user == null) {
+			structure.setCode(HttpStatus.NOT_FOUND.value());
+			structure.setMessage("user doesn't exists, please signup");
+			structure.setStatus("error");
+			structure.setData(null);
+			structure.setPlatform("facebook");
+			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
+		}
+		return analyticsPostService.getCompleteAnakytics(user);
 	}
 }

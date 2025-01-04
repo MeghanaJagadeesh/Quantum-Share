@@ -97,6 +97,7 @@ public class InstagramService {
 
 		String fileUrl = postOnServer.uploadFile(mediaFile, "posts/");
 
+		
 		if (fileUrl == null) {
 			structure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			structure.setMessage("An error occured while uploading on server");
@@ -111,31 +112,10 @@ public class InstagramService {
 		if (mediaPost.getCaption() == null)
 			mediaPost.setCaption(" ");
 		if (mediaFile.getContentType().startsWith("image")) {
-//			if (mediaFile.getContentType().equals("image/jpeg") || mediaFile.getContentType().equals("image/png")
-//					|| mediaFile.getContentType().equals("image/jpg")) {
 			return postImageToMedia(instaId, fileUrl, mediaPost.getCaption(), accessToken, userId, profileName);
-//			} else {
-//				structure.setCode(HttpStatus.BAD_REQUEST.value());
-//				structure.setMessage("Invalid File Type. Accepted image types are JPG, PNG, and JPEG.");
-//				structure.setStatus("error");
-//				structure.setData(null);
-//				structure.setPlatform("instagram");
-//				return new ResponseEntity<ResponseWrapper>(configuration.getResponseWrapper(structure),
-//						HttpStatus.BAD_REQUEST);
-//			}
 		} else if (mediaFile.getContentType().startsWith("video")) {
-//			if (mediaFile.getContentType().equals("video/mp4")||mediaFile.getContentType().equals("video/quicktime")) {
 			return postVideoToMedia(instaId, fileUrl, mediaPost.getCaption(), accessToken, userId, profileName,
 					mediaFile);
-//			} else {
-//				structure.setCode(HttpStatus.BAD_REQUEST.value());
-//				structure.setMessage("Invalid File Type. Accepted video types are mp4 or mov");
-//				structure.setStatus("error");
-//				structure.setData(null);
-//				structure.setPlatform("instagram");
-//				return new ResponseEntity<ResponseWrapper>(configuration.getResponseWrapper(structure),
-//						HttpStatus.BAD_REQUEST);
-//			}
 		} else {
 			structure.setCode(HttpStatus.BAD_REQUEST.value());
 			structure.setMessage("Invalid File Type");

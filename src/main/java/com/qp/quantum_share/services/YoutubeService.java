@@ -26,6 +26,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.qp.quantum_share.configuration.ConfigurationClass;
+import com.qp.quantum_share.controller.SocialMediaLogoutController;
 import com.qp.quantum_share.dao.QuantumShareUserDao;
 import com.qp.quantum_share.dto.CreditSystem;
 import com.qp.quantum_share.dto.MediaPost;
@@ -85,6 +86,9 @@ public class YoutubeService {
 
 	@Autowired
 	YoutubeUser youtubeUser;
+	
+	@Autowired
+	SocialMediaLogoutController logoutController;
 
 	@Autowired
 	SocialAccounts socialAccounts;
@@ -127,6 +131,7 @@ public class YoutubeService {
 				JsonNode responseBody = objectMapper.readTree(response.getBody());
 				if (responseBody != null && responseBody.has("access_token")) {
 					String accessToken = responseBody.get("access_token").asText();
+					String refreshToken = responseBody.get("refresh_token").asText();
 					String youtubeUserDetails = getChannelDetails(accessToken);
 
 					if (youtubeUserDetails == null || youtubeUserDetails.isEmpty()) {
@@ -137,7 +142,7 @@ public class YoutubeService {
 						structure.setData(null);
 						return new ResponseEntity<>(structure, HttpStatus.NOT_FOUND);
 					}
-					return saveYoutubeUser(youtubeUserDetails, user, accessToken, userId);
+					return saveYoutubeUser(youtubeUserDetails, user, accessToken, refreshToken, userId);
 				} else {
 					throw new CommonException("Access token not found in response");
 				}
@@ -180,7 +185,7 @@ public class YoutubeService {
 	}
 
 	private ResponseEntity<ResponseStructure<String>> saveYoutubeUser(String youtubeUserDetails, QuantumShareUser user,
-			String accessToken, int userId) {
+			String accessToken, String refreshToken, int userId) {
 		try {
 			JsonNode rootNode = objectMapper.readTree(youtubeUserDetails);
 			SocialAccounts accounts = user.getSocialAccounts();
@@ -189,6 +194,8 @@ public class YoutubeService {
 				JsonNode snippetNode = itemsNode.path("snippet");
 				YoutubeUser youtubeUser = new YoutubeUser();
 				youtubeUser.setYoutubeUserAccessToken(accessToken);
+				youtubeUser.setYoutubeUserRefreshToken(refreshToken);
+				youtubeUser.setYtUserTokenIssuedTime(Instant.now());
 				youtubeUser.setYoutubeChannelId(itemsNode.path("id").asText());
 				youtubeUser.setChannelName(snippetNode.path("title").asText());
 				youtubeUser.setSubscriberCount(itemsNode.path("statistics").path("subscriberCount").asInt());
@@ -201,6 +208,8 @@ public class YoutubeService {
 				JsonNode snippetNode = itemsNode.path("snippet");
 				YoutubeUser youtubeUser = new YoutubeUser();
 				youtubeUser.setYoutubeUserAccessToken(accessToken);
+				youtubeUser.setYoutubeUserRefreshToken(refreshToken);
+				youtubeUser.setYtUserTokenIssuedTime(Instant.now());
 				youtubeUser.setYoutubeChannelId(itemsNode.path("id").asText());
 				youtubeUser.setChannelName(snippetNode.path("title").asText());
 				youtubeUser.setSubscriberCount(itemsNode.path("statistics").path("subscriberCount").asInt());
@@ -212,6 +221,8 @@ public class YoutubeService {
 				JsonNode itemsNode = rootNode.path("items").get(0);
 				JsonNode snippetNode = itemsNode.path("snippet");
 				ytUser.setYoutubeUserAccessToken(accessToken);
+				ytUser.setYoutubeUserRefreshToken(refreshToken);
+				ytUser.setYtUserTokenIssuedTime(Instant.now());
 				ytUser.setYoutubeChannelId(itemsNode.path("id").asText());
 				ytUser.setChannelName(snippetNode.path("title").asText());
 				ytUser.setSubscriberCount(itemsNode.path("statistics").path("subscriberCount").asInt());
@@ -241,6 +252,77 @@ public class YoutubeService {
 		} catch (JsonProcessingException e) {
 			throw new CommonException(e.getMessage());
 		}
+	}
+
+	public ResponseEntity<ResponseStructure<Map<String, String>>> ytCheckAndRefreshAccessToken(QuantumShareUser user) {
+		System.out.println(":utube");
+		YoutubeUser youtubeUser = user.getSocialAccounts().getYoutubeUser();
+		ResponseStructure<Map<String, String>> responseStructure = new ResponseStructure<>();
+		System.out.println("Checking");
+		if (youtubeUser == null) {
+			responseStructure.setMessage("No YouTube user connected");
+			responseStructure.setStatus("error");
+			responseStructure.setData(Collections.singletonMap("status", "failure"));
+			return new ResponseEntity<>(responseStructure, HttpStatus.BAD_REQUEST);
+		}
+		
+	    if (youtubeUser.getYoutubeUserRefreshToken() == null || youtubeUser.getYtUserTokenIssuedTime() == null) {
+	    	logoutController.disconnectYoutube();
+	    }
+
+		Instant now = Instant.now();
+		Instant expiryTime = youtubeUser.getYtUserTokenIssuedTime().plusSeconds(1 * 60 * 60);
+
+		// Check if token is expired or about to expire within the next 5 minutes
+		if (now.isAfter(expiryTime.minus(Duration.ofMinutes(5)))) {
+			System.out.println("Refresh Token");
+			try {
+				// Refresh token logic
+				MultiValueMap<String, String> requestMap = new LinkedMultiValueMap<>();
+				requestMap.add("client_id", clientId);
+				requestMap.add("client_secret", clientSecret);
+				requestMap.add("refresh_token", youtubeUser.getYoutubeUserRefreshToken());
+				requestMap.add("grant_type", "refresh_token");
+
+				HttpEntity<MultiValueMap<String, String>> httpRequest = new HttpEntity<>(requestMap, new HttpHeaders());
+
+				ResponseEntity<String> response = restTemplate.exchange(tokenUri, HttpMethod.POST, httpRequest,
+						String.class);
+
+				if (response.getStatusCode().is2xxSuccessful()) {
+					JsonNode responseBody = objectMapper.readTree(response.getBody());
+					String newAccessToken = responseBody.has("access_token") ? responseBody.get("access_token").asText()
+							: null;
+					String newRefreshToken = responseBody.has("refresh_token")
+							? responseBody.get("refresh_token").asText()
+							: youtubeUser.getYoutubeUserRefreshToken();
+
+					// Update user with new token details
+					youtubeUser.setYoutubeUserAccessToken(newAccessToken);
+					youtubeUser.setYoutubeUserRefreshToken(newRefreshToken);
+					youtubeUser.setYtUserTokenIssuedTime(Instant.now());
+					userDao.save(user);
+					responseStructure.setMessage("Access token refreshed successfully");
+					responseStructure.setStatus("success");
+//		                Map<String, String> data = new HashMap<>();
+//		                data.put("status", "success");
+//		                data.put("newAccessToken", newAccessToken);
+//		                data.put("newRefreshToken", newRefreshToken);
+					responseStructure.setData(null);
+					return new ResponseEntity<>(responseStructure, HttpStatus.OK);
+				}
+			} catch (Exception e) {
+				responseStructure.setMessage("Error refreshing YouTube access token: " + e.getMessage());
+				responseStructure.setStatus("error");
+				responseStructure.setData(null);
+				return new ResponseEntity<>(responseStructure, HttpStatus.INTERNAL_SERVER_ERROR);
+			}
+		}
+		// Token is still valid
+		responseStructure.setMessage("Access token is still valid");
+		responseStructure.setStatus("success");
+		responseStructure.setData(null);
+		return new ResponseEntity<>(responseStructure, HttpStatus.OK);
 	}
 
 	// Media Posting
@@ -351,72 +433,6 @@ public class YoutubeService {
 			return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(errorResponse),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
-	}
-
-	public ResponseEntity<ResponseStructure<Map<String, String>>> ytCheckAndRefreshAccessToken(QuantumShareUser user) {
-		YoutubeUser youtubeUser = user.getSocialAccounts().getYoutubeUser();
-		ResponseStructure<Map<String, String>> responseStructure = new ResponseStructure<>();
-		System.out.println("Checking");
-		if (youtubeUser == null) {
-			responseStructure.setMessage("No YouTube user connected");
-			responseStructure.setStatus("error");
-			responseStructure.setData(Collections.singletonMap("status", "failure"));
-			return new ResponseEntity<>(responseStructure, HttpStatus.BAD_REQUEST);
-		}
-
-		Instant now = Instant.now();
-		Instant expiryTime = youtubeUser.getYtUserTokenIssuedTime().plusSeconds(1 * 60 * 60);
-
-		// Check if token is expired or about to expire within the next 5 minutes
-		if (now.isAfter(expiryTime.minus(Duration.ofMinutes(5)))) {
-			System.out.println("Refresh Token");
-			try {
-				// Refresh token logic
-				MultiValueMap<String, String> requestMap = new LinkedMultiValueMap<>();
-				requestMap.add("client_id", clientId);
-				requestMap.add("client_secret", clientSecret);
-				requestMap.add("refresh_token", youtubeUser.getYoutubeUserRefreshToken());
-				requestMap.add("grant_type", "refresh_token");
-
-				HttpEntity<MultiValueMap<String, String>> httpRequest = new HttpEntity<>(requestMap, new HttpHeaders());
-
-				ResponseEntity<String> response = restTemplate.exchange(tokenUri, HttpMethod.POST, httpRequest,
-						String.class);
-
-				if (response.getStatusCode().is2xxSuccessful()) {
-					JsonNode responseBody = objectMapper.readTree(response.getBody());
-					String newAccessToken = responseBody.has("access_token") ? responseBody.get("access_token").asText()
-							: null;
-					String newRefreshToken = responseBody.has("refresh_token")
-							? responseBody.get("refresh_token").asText()
-							: youtubeUser.getYoutubeUserRefreshToken();
-
-					// Update user with new token details
-					youtubeUser.setYoutubeUserAccessToken(newAccessToken);
-					youtubeUser.setYoutubeUserRefreshToken(newRefreshToken);
-					youtubeUser.setYtUserTokenIssuedTime(Instant.now());
-					userDao.save(user);
-					responseStructure.setMessage("Access token refreshed successfully");
-					responseStructure.setStatus("success");
-//		                Map<String, String> data = new HashMap<>();
-//		                data.put("status", "success");
-//		                data.put("newAccessToken", newAccessToken);
-//		                data.put("newRefreshToken", newRefreshToken);
-					responseStructure.setData(null);
-					return new ResponseEntity<>(responseStructure, HttpStatus.OK);
-				}
-			} catch (Exception e) {
-				responseStructure.setMessage("Error refreshing YouTube access token: " + e.getMessage());
-				responseStructure.setStatus("error");
-				responseStructure.setData(null);
-				return new ResponseEntity<>(responseStructure, HttpStatus.INTERNAL_SERVER_ERROR);
-			}
-		}
-		// Token is still valid
-		responseStructure.setMessage("Access token is still valid");
-		responseStructure.setStatus("success");
-		responseStructure.setData(null);
-		return new ResponseEntity<>(responseStructure, HttpStatus.OK);
 	}
 
 }

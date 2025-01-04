@@ -82,13 +82,9 @@ public class PostOnServer {
             session = getSession();
             channelSftp = (ChannelSftp) session.openChannel("sftp");
             channelSftp.connect();
-
-            // Generate unique file name
-            String filename = UUID.randomUUID() + "_" + file.getOriginalFilename().replaceAll("\\s", "");
+            String filename = UUID.randomUUID() + "_" + file.getOriginalFilename().replaceAll("\\s", "").hashCode();
             String remoteFilePath = SFTP_DIRECTORY + directory + filename;
-
-            // Split file into chunks and upload in parallel
-            byte[] buffer = new byte[8192 * 10]; // Larger buffer for faster transfer
+            byte[] buffer = new byte[8192 * 10]; 
             try (InputStream inputStream = file.getInputStream();
                  WritableByteChannel outChannel = Channels.newChannel(channelSftp.put(remoteFilePath, ChannelSftp.OVERWRITE))) {
 

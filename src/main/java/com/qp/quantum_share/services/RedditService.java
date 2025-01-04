@@ -199,27 +199,19 @@ public class RedditService {
 		RedditDto redditUser = user.getSocialAccounts().getRedditDto();
 
 		if (redditUser == null) {
-
-			// System.out.println("refreshtoken 1 = " + redditUser);
 			return createErrorResponse("No Reddit account linked", HttpStatus.BAD_REQUEST);
 		}
-
 		Instant tokenIssuedTime = redditUser.getTokenIssuedTime();
 		Instant expirationTime = tokenIssuedTime.plusSeconds(24 * 60 * 60);
 
-		// Check if access token is about to expire (within 5 hours)
 		if (Instant.now().isAfter(expirationTime.minusSeconds(5 * 60 * 60))) {
 			ResponseStructure<Map<String, String>> refreshResponse = refreshAccessToken(
 					redditUser.getRedditRefreshToken());
-
 			if (refreshResponse.getCode() == HttpStatus.OK.value()) {
-				// Update tokens in RedditDto
 				@SuppressWarnings("unchecked")
 				Map<String, String> responseData = (Map<String, String>) refreshResponse.getData();
 				redditUser.setRedditAccessToken(responseData.get("access_token"));
 				redditUser.setRedditRefreshToken(responseData.get("refresh_token")); // Update if necessary
-
-				// Set the issued time to now
 				redditUser.setTokenIssuedTime(Instant.now());
 
 				redditDao.saveReddit(redditUser);

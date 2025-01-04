@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
@@ -109,10 +110,9 @@ public class TwitterService {
 
 	@Autowired
 	AnalyticsPostService analyticsPostService;
-	
+
 	String codeVerifier;
 	String codeChallenge;
-	
 
 	public ResponseEntity<ResponseStructure<String>> getAuthorizationUrl(QuantumShareUser user) {
 		generatePKCEValues();
@@ -132,25 +132,23 @@ public class TwitterService {
 	public static String generateStateValue(int i) {
 		return i + UUID.randomUUID().toString();
 	}
-	
+
 	private void generatePKCEValues() {
-	    try {
-	        // Generate the codeVerifier as a random string (32 bytes)
-	        this.codeVerifier = Base64.getUrlEncoder().withoutPadding().encodeToString(
-	                SecureRandom.getInstanceStrong().generateSeed(32)
-	        );
+		try {
+			// Generate the codeVerifier as a random string (32 bytes)
+			this.codeVerifier = Base64.getUrlEncoder().withoutPadding()
+					.encodeToString(SecureRandom.getInstanceStrong().generateSeed(32));
 
-	        // Create the codeChallenge by applying SHA-256 hash to the codeVerifier
-	        byte[] digest = MessageDigest.getInstance("SHA-256").digest(codeVerifier.getBytes(StandardCharsets.US_ASCII));
-	        this.codeChallenge = Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+			// Create the codeChallenge by applying SHA-256 hash to the codeVerifier
+			byte[] digest = MessageDigest.getInstance("SHA-256")
+					.digest(codeVerifier.getBytes(StandardCharsets.US_ASCII));
+			this.codeChallenge = Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
 
-	        System.out.println(codeVerifier + " " + codeChallenge);  // Just to verify they match
-	    } catch (NoSuchAlgorithmException e) {
-	        throw new RuntimeException("Error generating PKCE values", e);
-	    }
+			System.out.println(codeVerifier + " " + codeChallenge); // Just to verify they match
+		} catch (NoSuchAlgorithmException e) {
+			throw new RuntimeException("Error generating PKCE values", e);
+		}
 	}
-
-	
 
 	public ResponseEntity<ResponseStructure<String>> verifyToken(String code, QuantumShareUser user) {
 //		try {
@@ -167,15 +165,14 @@ public class TwitterService {
 				headers);
 		System.out.println("body : " + httpRequest.getBody().toString());
 		ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.POST, httpRequest, JsonNode.class);
-		System.out.println("res headers : "+response.getHeaders().toString());
+		System.out.println("res headers : " + response.getHeaders().toString());
 		if (response.getStatusCode().is2xxSuccessful()) {
 			JsonNode responseBody = response.getBody();
-			System.out.println("res  "+responseBody);
+			System.out.println("res  " + responseBody);
 			String access_token = responseBody.get("access_token").asText();
 			String refresh_token = responseBody.get("refresh_token").asText();
-			long expires_in = responseBody.get("expires_in").asLong();
 			String tweetUser = fetchUser(access_token);
-			return saveTwitterUser(tweetUser, user, access_token, refresh_token, expires_in);
+			return saveTwitterUser(tweetUser, user, access_token, refresh_token);
 		} else {
 			structure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			structure.setData(null);
@@ -187,7 +184,7 @@ public class TwitterService {
 	}
 
 	private ResponseEntity<ResponseStructure<String>> saveTwitterUser(String tweetUser, QuantumShareUser user,
-			String access_token, String refresh_token, long expires_in) {
+			String access_token, String refresh_token) {
 		try {
 			JsonNode rootNode = objectMapper.readTree(tweetUser);
 			SocialAccounts accounts = user.getSocialAccounts();
@@ -195,8 +192,7 @@ public class TwitterService {
 				twitterUser.setTwitterUserId(rootNode.get("data").get("id").asLong());
 				twitterUser.setAccess_token(access_token);
 				twitterUser.setRefresh_token(refresh_token);
-				twitterUser.setTokenGenerationTime(System.currentTimeMillis() / 1000);
-				twitterUser.setAccessTokenExpirationTime(expires_in);
+				twitterUser.setTokenGenerationTime(Instant.now());
 				twitterUser.setName(rootNode.get("data").get("name").asText());
 				twitterUser.setUserName(rootNode.get("data").get("username").asText());
 				twitterUser.setPicture_url(rootNode.get("data").get("profile_image_url").asText());
@@ -208,8 +204,7 @@ public class TwitterService {
 			} else if (accounts.getTwitterUser() == null) {
 				twitterUser.setAccess_token(access_token);
 				twitterUser.setRefresh_token(refresh_token);
-				twitterUser.setTokenGenerationTime(System.currentTimeMillis() / 1000);
-				twitterUser.setAccessTokenExpirationTime(expires_in);
+				twitterUser.setTokenGenerationTime(Instant.now());
 				twitterUser.setTwitterUserId(rootNode.get("data").get("id").asLong());
 				twitterUser.setName(rootNode.get("data").get("name").asText());
 				twitterUser.setUserName(rootNode.get("data").get("username").asText());
@@ -223,8 +218,7 @@ public class TwitterService {
 				exUser.setTwitterUserId(rootNode.get("data").get("id").asLong());
 				exUser.setAccess_token(access_token);
 				exUser.setRefresh_token(refresh_token);
-				exUser.setTokenGenerationTime(System.currentTimeMillis() / 1000);
-				exUser.setAccessTokenExpirationTime(expires_in);
+				exUser.setTokenGenerationTime(Instant.now());
 				exUser.setName(rootNode.get("data").get("name").asText());
 				exUser.setUserName(rootNode.get("data").get("username").asText());
 				exUser.setPicture_url(rootNode.get("data").get("profile_image_url").asText());
@@ -267,7 +261,7 @@ public class TwitterService {
 			HttpEntity<String> httpRequest = configurationClass.getHttpEntity(headers);
 			ResponseEntity<String> response = restTemplate.exchange(apiUrl, HttpMethod.GET, httpRequest, String.class);
 			if (response.getStatusCode().is2xxSuccessful()) {
-				System.out.println("inside if : "+response.getBody());
+				System.out.println("inside if : " + response.getBody());
 				return response.getBody();
 			} else {
 				return null;
@@ -287,19 +281,23 @@ public class TwitterService {
 		return file;
 	}
 
-	public boolean isAccessTokenExpired(TwitterUser twitteruser2) {
-		long expirationTime = twitteruser2.getAccessTokenExpirationTime();
-		long generationTime = twitteruser2.getTokenGenerationTime();
-		long bufferTime = 15 * 60;
+	public boolean checkAndRefreshAccessTokenTwitter(QuantumShareUser user) {
+		System.out.println("check refersh token");
+		TwitterUser twitter = user.getSocialAccounts().getTwitterUser();
+		if (twitter == null) {
+			return false;
+		}
 
-		long actualExpirationTimeInSec = generationTime + expirationTime;
-		long actualExpirationTime = actualExpirationTimeInSec * 1000;
-		long currentTime = System.currentTimeMillis();
-		return (currentTime + (bufferTime * 1000)) >= actualExpirationTime;
+		Instant tokenIssuedTime = twitter.getTokenGenerationTime();
+		Instant expirationTime = tokenIssuedTime.plusSeconds(2 * 60 * 60);
+		if (Instant.now().isAfter(expirationTime.minusSeconds(15 * 60))) {
+			return refreshAccessToken(twitter, user);
+		}
+		return false;
 
 	}
 
-	private String generateAccessToken(TwitterUser twitteruser2, QuantumShareUser user) {
+	private boolean refreshAccessToken(TwitterUser twitteruser2, QuantumShareUser user) {
 		try {
 			String apiUrl = "https://api.twitter.com/2/oauth2/token";
 
@@ -319,14 +317,14 @@ public class TwitterService {
 				JsonNode res = response.getBody();
 				twitteruser2.setAccess_token(res.has("access_token") ? res.get("access_token").asText() : null);
 				twitteruser2.setRefresh_token(res.has("refresh_token") ? res.get("refresh_token").asText() : null);
-				twitteruser2.setAccessTokenExpirationTime(res.has("expires_in") ? res.get("expires_in").asLong() : 0);
-				twitteruser2.setTokenGenerationTime(System.currentTimeMillis() / 1000);
+				twitteruser2.setTokenGenerationTime(Instant.now());
 				accounts.setTwitterUser(twitteruser2);
 				user.setSocialAccounts(accounts);
 				userDao.save(user);
-				return res.has("access_token") ? res.get("access_token").asText() : null;
+				System.out.println("true");
+				return true;
 			} else {
-				return null;
+				return false;
 			}
 		} catch (NullPointerException e) {
 			throw new CommonException(e.getMessage());
@@ -457,9 +455,6 @@ public class TwitterService {
 			}
 			String apiUrl = "https://api.twitter.com/2/tweets";
 			String access_token = twitteruser2.getAccess_token();
-			if (isAccessTokenExpired(twitteruser2)) {
-				access_token = generateAccessToken(twitteruser2, user);
-			}
 			headers.setContentType(MediaType.APPLICATION_JSON);
 			headers.setBearerAuth(access_token);
 			String requestBody = String.format("{\"text\": \"%s\", \"media\": {\"media_ids\": [\"%s\"]}}",
@@ -473,9 +468,8 @@ public class TwitterService {
 				credits.setRemainingCredit(credits.getRemainingCredit() - 1);
 				user.setCreditSystem(credits);
 				userDao.save(user);
-				JsonNode res = response.getBody();
 
-				savePost(res, twitteruser2, user);
+//				savePost(res, twitteruser2, user);
 				successResponse.setCode(HttpStatus.OK.value());
 				successResponse.setMessage("Posted On Twitter");
 				successResponse.setStatus("success");
@@ -512,24 +506,24 @@ public class TwitterService {
 			HttpEntity<String> requestEntity = configurationClass.getHttpEntity(headers);
 			ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.GET, requestEntity,
 					JsonNode.class);
-			System.out.println("res headers : "+response.getHeaders());
+			System.out.println("res headers : " + response.getHeaders());
 			String type = null;
 			String mediaUrl = null;
 			if (response.getStatusCode().is2xxSuccessful()) {
 				JsonNode mediaArray = response.getBody().at("/includes/media");
-				System.out.println("media arr : "+mediaArray);
+				System.out.println("media arr : " + mediaArray);
 				for (JsonNode mediaNode : mediaArray) {
-					type = mediaNode.get("type").asText(null); 
-					mediaUrl = mediaNode.get("url").asText(null); 
+					type = mediaNode.get("type").asText(null);
+					mediaUrl = mediaNode.get("url").asText(null);
 				}
 				System.out.println("Type: " + type + ", URL: " + mediaUrl);
 			}
-			if(type.equals("photo"))
-				type="image";
-			else if(type.equals("video"))
-				type="video";
-		analyticsPostService.savePost(postId, twitteruser2.getTwitterUserId()+"", user, type, "twitter",
-				twitteruser2.getUserName(), mediaUrl);
+			if (type.equals("photo"))
+				type = "image";
+			else if (type.equals("video"))
+				type = "video";
+			analyticsPostService.savePost(postId, twitteruser2.getTwitterUserId() + "", user, type, "twitter",
+					twitteruser2.getUserName(), mediaUrl);
 		} catch (Exception e) {
 			System.out.println("catch block");
 			e.printStackTrace();

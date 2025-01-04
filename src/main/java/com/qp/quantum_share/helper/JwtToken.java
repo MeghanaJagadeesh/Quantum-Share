@@ -31,7 +31,7 @@ public class JwtToken {
 
 		
 		Calendar calendar = Calendar.getInstance();
-        calendar.add(Calendar.HOUR, 1); 
+		calendar.add(Calendar.DAY_OF_YEAR, 15); 
         Date expirationDate = calendar.getTime();
         
 		return Jwts.builder().setClaims(claims).setExpiration(expirationDate)

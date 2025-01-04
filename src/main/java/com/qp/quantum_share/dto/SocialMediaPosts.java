@@ -1,6 +1,6 @@
 package com.qp.quantum_share.dto;
 
-import java.time.LocalDate;
+import java.time.Instant;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -22,7 +22,7 @@ public class SocialMediaPosts {
 	private String profileId;
 	private String profileName;
 	private String platformName;
-	private LocalDate postDate;
+	private Instant postDate;
 	private String postTime;
 	private String mediaType;
 	

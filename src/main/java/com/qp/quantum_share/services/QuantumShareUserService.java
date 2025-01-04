@@ -1,5 +1,6 @@
 package com.qp.quantum_share.services;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
@@ -83,16 +84,18 @@ public class QuantumShareUserService {
 
 	@Autowired
 	CommonMethod commonMethod;
-	
+
 	@Autowired
 	YoutubeService youtubeService;
+
+	@Autowired
+	TwitterService twitterService;
 
 	public ResponseEntity<ResponseStructure<String>> login(String emph, String password) {
 		ResponseStructure<String> structure = new ResponseStructure<String>();
 		long mobile = 1;
 		String email = null;
 		try {
-			System.out.println(emph);
 			mobile = Long.parseLong(emph);
 		} catch (NumberFormatException e) {
 			System.out.println("catch");
@@ -244,7 +247,7 @@ public class QuantumShareUserService {
 
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_ACCEPTABLE);
 		} else {
-			user.setSignUpDate(LocalDate.now());
+			user.setSignUpDate(Instant.now());
 			user.setTrial(true);
 			user.setVerified(true);
 //			user.setPassword(user.getPassword());
@@ -274,7 +277,7 @@ public class QuantumShareUserService {
 		QuantumShareUser user = userDao.findByVerificationToken(token);
 		if (user != null) {
 			user.setVerified(true);
-			user.setSignUpDate(LocalDate.now());
+			user.setSignUpDate(Instant.now());
 			user.setTrial(true);
 			user.setVerificationToken(null);
 			CreditSystem creditSystem = new CreditSystem();
@@ -451,10 +454,10 @@ public class QuantumShareUserService {
 	}
 
 	public int calculateRemainingPackageDays(QuantumShareUser user) {
-		LocalDate localDate = LocalDate.now();
+		Instant localDate = Instant.now();
 		int remainingDays = 0;
 		if (user.isTrial()) {
-			LocalDate trailDate = user.getSignUpDate();
+			Instant trailDate = user.getSignUpDate();
 			if ((freetrail - ChronoUnit.DAYS.between(trailDate, localDate)) > 0) {
 				remainingDays = (int) (freetrail - ChronoUnit.DAYS.between(trailDate, localDate));
 				return remainingDays;
@@ -465,7 +468,7 @@ public class QuantumShareUserService {
 				return remainingDays;
 			}
 		} else if (user.getSubscriptionDetails() != null && user.getSubscriptionDetails().isSubscribed()) {
-			LocalDate subscriptionDate = user.getSubscriptionDetails().getSubscriptionDate();
+			Instant subscriptionDate = user.getSubscriptionDetails().getSubscriptionDate();
 			int subscriptiondays = user.getSubscriptionDetails().getSubscriptiondays();
 			if ((subscriptiondays - ChronoUnit.DAYS.between(subscriptionDate, localDate)) > 0) {
 				remainingDays = (int) (subscriptiondays - ChronoUnit.DAYS.between(subscriptionDate, localDate));
@@ -522,26 +525,16 @@ public class QuantumShareUserService {
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
 		}
 		userTracking.applyCredit(user);
-		ResponseEntity<ResponseStructure<Map<String, String>>> serviceResponse = redditService
-				.checkAndRefreshAccessToken(user);
-		ResponseEntity<ResponseStructure<Map<String, String>>> ytServiceResponse = youtubeService
-				.ytCheckAndRefreshAccessToken(user);
-		System.out.println("redit : " + serviceResponse);
-//		Map<String, Object> usermap = configure.getMap();
-//		usermap.put("userId", user.getUserId());
-//		usermap.put("username", user.getFirstName() + " " + user.getLastName());
-//		usermap.put("email", user.getEmail());
-//		usermap.put("profilepic", user.getProfilePic());
-//		usermap.put("socialAccounts", user.getSocialAccounts());
-//		usermap.put("credit", user.getCreditSystem().getRemainingCredit());
+
+		// refresh token
+		redditService.checkAndRefreshAccessToken(user);
+		youtubeService.ytCheckAndRefreshAccessToken(user);
+		twitterService.checkAndRefreshAccessTokenTwitter(user);
 
 		Map<String, Object> map = configure.getMap();
-//		map.put("user", usermap);
 		map.put("credit", user.getCreditSystem().getRemainingCredit());
 		map.put("trail", user.isTrial());
-//		map.put("subscribe", user.get)
 		map.put("remainingdays", calculateRemainingPackageDays(user));
-		System.out.println(map);
 		structure.setData(map);
 		structure.setCode(HttpStatus.OK.value());
 		structure.setMessage(null);
@@ -1051,7 +1044,7 @@ public class QuantumShareUserService {
 			youtube.put("user_id", userId);
 			data.put("youtube", youtube);
 		}
-		
+
 		if (redditDto != null) {
 			Map<String, Object> reddit = configure.getMap();
 			String reddit_image_url;
@@ -1065,7 +1058,7 @@ public class QuantumShareUserService {
 			reddit.put("subscribersCount", redditDto.getRedditSubscribers());
 			data.put("reddit", reddit);
 		}
-		
+
 		if (twitterUser != null) {
 			Map<String, Object> twitter = configure.getMap();
 			String twitter_profile_url;
@@ -1080,7 +1073,7 @@ public class QuantumShareUserService {
 			twitter.put("twitterFollowerCount", twitterUser.getFollower_count());
 			data.put("twitter", twitter);
 		}
-		
+
 		if (telegramUser != null) {
 			Map<String, Object> telegram = configure.getMap();
 			String imageUrl;
@@ -1095,13 +1088,13 @@ public class QuantumShareUserService {
 			telegram.put("telegramGroupMembersCount", telegramUser.getTelegramGroupMembersCount());
 			data.put("telegram", telegram);
 		}
-		
+
 		structure.setCode(HttpStatus.OK.value());
 		structure.setPlatform(null);
 		structure.setMessage(null);
 		structure.setStatus("success");
 		structure.setData(data);
 		return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
-	
+
 	}
 }

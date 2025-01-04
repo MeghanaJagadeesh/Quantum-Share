@@ -1,8 +1,11 @@
 package com.qp.quantum_share.services;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -76,7 +79,7 @@ public class AnalyticsPostService {
 		post.setPostid(id);
 		post.setMediaType(contentType);
 		post.setPlatformName(platform);
-		post.setPostDate(LocalDate.now());
+		post.setPostDate(Instant.now());
 		post.setProfileId(profileid);
 
 		LocalTime localTime = LocalTime.now();
@@ -102,7 +105,7 @@ public class AnalyticsPostService {
 		post.setPostid(id);
 		post.setMediaType(contentType);
 		post.setPlatformName(platform);
-		post.setPostDate(LocalDate.now());
+		post.setPostDate(Instant.now());
 		post.setProfileId(profileid);
 
 		LocalTime localTime = LocalTime.now();
@@ -323,61 +326,69 @@ public class AnalyticsPostService {
 	}
 
 	private ResponseEntity<ResponseStructure<String>> twitterAnalytics(QuantumShareUser user, String pid) {
-		SocialMediaPosts post = postsDao.getPost(Integer.parseInt(pid));
-
-		TwitterUser twitterUser = user.getSocialAccounts().getTwitterUser();
-		if (twitterUser == null) {
-			ResponseStructure<String> structure = new ResponseStructure<>();
-			structure.setCode(HttpStatus.NOT_FOUND.value());
-			structure.setMessage("This post does not have an associated Twitter Profile.");
-			structure.setPlatform("twitter");
-			structure.setStatus("error");
-			structure.setData(null);
-			return new ResponseEntity<>(structure, HttpStatus.NOT_FOUND);
-		}
-		String apiUrl = "https://api.twitter.com/2/tweets?ids=" + post.getPostid()
-				+ "&tweet.fields=public_metrics&expansions=attachments.media_keys&media.fields=public_metrics";
-		System.out.println(apiUrl);
-		HttpHeaders headers = new HttpHeaders();
-		headers.setBearerAuth(twitterUser.getAccess_token());
-		HttpEntity<String> requestEntiry = config.getHttpEntity(headers);
-		ResponseEntity<JsonNode> response = restTemplate.exchange(apiUrl, HttpMethod.GET, requestEntiry,
-				JsonNode.class);
-		System.out.println(response.getBody());
-		JsonNode responseBody = response.getBody();
-		Map<String, Object> insight = config.getMap();
-		if (response.getStatusCode().is2xxSuccessful()) {
-			JsonNode publicMetrics = responseBody.path("data").get(0).path("public_metrics");
-			insight.put("retweetCount", publicMetrics.path("retweet_count").asInt());
-			insight.put("replyCount", publicMetrics.path("reply_count").asInt());
-			insight.put("likeCount", publicMetrics.path("like_count").asInt());
-			insight.put("bookmarkCount", publicMetrics.path("bookmark_count").asInt());
-			insight.put("impressionCount", publicMetrics.path("impression_count").asInt());
-
-			String text = responseBody.path("data").get(0).path("text").asText();
-
-			Pattern pattern = Pattern.compile("(.+?)\\s(https?://\\S+)$");
-			Matcher matcher = pattern.matcher(text);
-			String description = "";
-			String mediaUrl = "";
-
-			if (matcher.find()) {
-				description = matcher.group(1).trim();
-				mediaUrl = matcher.group(2).trim();
+		try {
+			SocialMediaPosts post = postsDao.getPost(Integer.parseInt(pid));
+			TwitterUser twitterUser = user.getSocialAccounts().getTwitterUser();
+			if (twitterUser == null) {
+				ResponseStructure<String> structure = new ResponseStructure<>();
+				structure.setCode(HttpStatus.NOT_FOUND.value());
+				structure.setMessage("This post does not have an associated Twitter Profile.");
+				structure.setPlatform("twitter");
+				structure.setStatus("error");
+				structure.setData(null);
+				return new ResponseEntity<>(structure, HttpStatus.NOT_FOUND);
 			}
-			insight.put("full_picture", mediaUrl);
-			insight.put("media_type", post.getMediaType());
-			insight.put("description", description);
+			String apiUrl = "https://api.twitter.com/2/tweets?ids=" + post.getPostid()
+					+ "&tweet.fields=public_metrics&expansions=attachments.media_keys&media.fields=public_metrics";
+			System.out.println(apiUrl);
+			HttpHeaders headers = new HttpHeaders();
+			headers.setBearerAuth(twitterUser.getAccess_token());
+			HttpEntity<String> requestEntiry = config.getHttpEntity(headers);
+			ResponseEntity<JsonNode> response = restTemplate.exchange(apiUrl, HttpMethod.GET, requestEntiry,
+					JsonNode.class);
+			System.out.println(response.getBody());
+			JsonNode responseBody = response.getBody();
+			Map<String, Object> insight = config.getMap();
+			if (response.getStatusCode().is2xxSuccessful()) {
+				JsonNode publicMetrics = responseBody.path("data").get(0).path("public_metrics");
+				insight.put("retweetCount", publicMetrics.path("retweet_count").asInt());
+				insight.put("replyCount", publicMetrics.path("reply_count").asInt());
+				insight.put("likeCount", publicMetrics.path("like_count").asInt());
+				insight.put("bookmarkCount", publicMetrics.path("bookmark_count").asInt());
+				insight.put("impressionCount", publicMetrics.path("impression_count").asInt());
 
+				 JsonNode mediaArray = responseBody.path("includes").path("media");
+		            if (mediaArray.isArray() && mediaArray.size() > 0) {
+		                JsonNode media = mediaArray.get(0);
+		                insight.put("viewCount", media.path("public_metrics").path("view_count").asInt());
+		            }
+		            
+				String text = responseBody.path("data").get(0).path("text").asText();
+
+				Pattern pattern = Pattern.compile("(.+?)\\s(https?://\\S+)$");
+				Matcher matcher = pattern.matcher(text);
+				String description = "";
+
+				if (matcher.find()) {
+					description = matcher.group(1).trim();
+				}
+				insight.put("full_picture", post.getImageUrl());
+				insight.put("media_type", post.getMediaType());
+				insight.put("description", description);
+
+			}
+			ResponseStructure<String> structure = new ResponseStructure<>();
+			structure.setCode(HttpStatus.OK.value());
+			structure.setData(insight);
+			structure.setMessage("Twitter Post analytics");
+			structure.setPlatform("twitter");
+			structure.setStatus("success");
+
+			return new ResponseEntity<>(structure, HttpStatus.OK);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
 		}
-		ResponseStructure<String> structure = new ResponseStructure<>();
-		structure.setCode(HttpStatus.OK.value());
-		structure.setData(insight);
-		structure.setMessage("YouTube Post analytics");
-		structure.setPlatform("youtube");
-		structure.setStatus("success");
-
-		return new ResponseEntity<>(structure, HttpStatus.OK);
 
 	}
 
@@ -700,60 +711,103 @@ public class AnalyticsPostService {
 			responseStructure.setPlatform("Reddit");
 			return new ResponseEntity<ResponseStructure<String>>(responseStructure, HttpStatus.NOT_FOUND);
 		}
-
 		String accessToken = redditDto.getRedditAccessToken();
 		String url = "https://oauth.reddit.com/comments/" + post.getPostid();
-		System.out.println("1");
-		HttpHeaders headers = new HttpHeaders();
-		headers.set("Authorization", "Bearer " + accessToken);
-		headers.set("User-Agent", "web:NmIDntOHG8nO6qeCzU2wDw:v1.0.0(by /u/Quantum_1824)");
 
-		HttpEntity<String> entity = new HttpEntity<>(headers);
+	    HttpHeaders headers = new HttpHeaders();
+	    headers.set("Authorization", "Bearer " + accessToken);
+	    headers.set("User-Agent", "web:NmIDntOHG8nO6qeCzU2wDw:v1.0.0(by /u/Quantum_1824)");
 
-		try {
-			System.out.println("2");
-			ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
-			System.out.println("3 " + response.getBody());
-			// Parse response
-			ObjectMapper objectMapper = new ObjectMapper();
-			JsonNode rootNode = objectMapper.readTree(response.getBody());
-			System.out.println("root " + rootNode);
-			JsonNode postData = rootNode.get(0).get("data").get("children").get(0).get("data");
-			System.out.println(postData);
-			JsonNode commentData = rootNode.get(1).get("data").get("children");
-			System.out.println(commentData);
-			int ups = 0;
-			if (!commentData.isEmpty() || commentData != null) {
-				ups = commentData.get("ups").asInt();
-			}
-			int numComments = postData.get("num_comments").asInt();
+	    HttpEntity<String> entity = new HttpEntity<>(headers);
 
-			int numCrossposts = postData.get("num_crossposts") != null ? postData.get("num_crossposts").asInt() : 0; // Fallback
-																														// to
-																														// 0
-			String subreddit = postData.get("subreddit").asText();
-			String postUrl = postData.get("url").asText();
+	    try {
+	        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
 
-			// Build response data
-			Map<String, String> responseData = Map.of("num_comments", String.valueOf(numComments), "num_likes/ups",
-					String.valueOf(ups), "num_shares/crossposts", String.valueOf(numCrossposts), "subreddit", subreddit,
-					"post_url", postUrl);
+	        // Log response for debugging
+	        System.out.println("Response body: " + response.getBody());
 
-			responseStructure.setMessage("Data fetched successfully");
-			responseStructure.setStatus("success");
-			responseStructure.setCode(HttpStatus.OK.value());
-			responseStructure.setPlatform("Reddit");
-			responseStructure.setData(responseData);
+	        ObjectMapper objectMapper = new ObjectMapper();
+	        JsonNode rootNode = objectMapper.readTree(response.getBody());
 
-			return ResponseEntity.ok(responseStructure);
+	        if (rootNode.isArray() && rootNode.size() >= 2) {
+	            JsonNode postDataNode = rootNode.get(0).path("data").path("children");
+	            JsonNode commentDataNode = rootNode.get(1).path("data").path("children");
 
-		} catch (Exception e) {
-			e.printStackTrace();
-			responseStructure.setMessage("Error fetching or processing Reddit data");
-			responseStructure.setStatus("error");
-			responseStructure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
-			responseStructure.setPlatform("Reddit");
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseStructure);
-		}
+	            // Initialize fallback/default values
+	            int numComments = 0, ups = 0, numCrossposts = 0;
+	            String subreddit = "", postUrl = "", title = "";
+
+	            // Extract post data
+	            if (postDataNode.isArray() && postDataNode.size() > 0) {
+	                JsonNode postData = postDataNode.get(0).path("data");
+	                numComments = postData.path("num_comments").asInt(0);
+	                numCrossposts = postData.path("num_crossposts").asInt(0);
+	                subreddit = postData.path("subreddit").asText("");
+	                postUrl = postData.path("url").asText("");
+	                title = postData.path("title").asText();       // Extract title
+	               }
+
+	            // Extract comment data
+	            if (commentDataNode.isArray() && commentDataNode.size() > 0) {
+	                JsonNode commentData = commentDataNode.get(0).path("data");
+	                ups = commentData.path("ups").asInt(0);
+	            }
+
+	            // Build response data
+	            Map<String, String> responseData = Map.of(
+	                "comments", String.valueOf(numComments),
+	                "likes", String.valueOf(ups),
+	                "shares", String.valueOf(numCrossposts),
+	                "subreddit_name", subreddit,
+	                "full_picture", postUrl,
+	                "description", title,                  // Include title
+	                "media_type", post.getMediaType()            // Include selftext
+	            );
+
+	            responseStructure.setMessage("Data fetched successfully");
+	            responseStructure.setStatus("success");
+	            responseStructure.setCode(HttpStatus.OK.value());
+	            responseStructure.setPlatform("Reddit");
+	            responseStructure.setData(responseData);
+	            return ResponseEntity.ok(responseStructure);
+
+	        } else {
+	            responseStructure.setMessage("Invalid Reddit post data or missing comments");
+	            responseStructure.setStatus("error");
+	            responseStructure.setCode(HttpStatus.NOT_FOUND.value());
+	            responseStructure.setPlatform("Reddit");
+	            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(responseStructure);
+	        }
+	    } catch (Exception e) {
+	        e.printStackTrace();
+	        responseStructure.setMessage("Error fetching or processing Reddit data");
+	        responseStructure.setStatus("error");
+	        responseStructure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+	        responseStructure.setPlatform("Reddit");
+	        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseStructure);
+	    }
+	}
+	
+	public ResponseEntity<ResponseStructure<String>> getCompleteAnakytics(QuantumShareUser user) {
+		ResponseStructure<String> structure=new ResponseStructure<String>();
+		List<SocialMediaPosts> posts = user.getPosts();
+		Map<Object, List<SocialMediaPosts>> groupedPosts = posts.stream()
+                .collect(Collectors.groupingBy(
+                        post -> LocalDate.ofInstant(post.getPostDate(), ZoneId.systemDefault())
+                ));
+
+        Map<Object, Integer> list=new HashMap<Object, Integer>();
+        groupedPosts.forEach((date, postList) -> {
+        	list.put(date, postList.size());
+            System.out.println("Date: " + date + " - Number of posts: " + postList.size());
+            postList.forEach(post -> System.out.println("  " + post));
+        });
+        
+        structure.setCode(HttpStatus.OK.value());
+        structure.setData(list);
+        structure.setMessage(null);
+        structure.setPlatform(null);
+        structure.setStatus("success");
+        return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
 	}
 }

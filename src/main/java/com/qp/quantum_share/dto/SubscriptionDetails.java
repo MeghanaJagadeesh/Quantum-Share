@@ -1,6 +1,6 @@
 package com.qp.quantum_share.dto;
 
-import java.time.LocalDate;
+import java.time.Instant;
 import java.util.List;
 
 import org.springframework.stereotype.Component;
@@ -26,7 +26,7 @@ public class SubscriptionDetails {
 	boolean subscribed;
 	String nameOfPackage;
 	double packageAmount;
-	LocalDate subscriptionDate;
+	Instant subscriptionDate;
 	int subscriptiondays;
 	
 	@OneToMany(cascade = CascadeType.ALL)

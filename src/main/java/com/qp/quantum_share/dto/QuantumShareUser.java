@@ -1,6 +1,6 @@
 package com.qp.quantum_share.dto;
 
-import java.time.LocalDate;
+import java.time.Instant;
 import java.util.List;
 
 import jakarta.persistence.CascadeType;
@@ -29,7 +29,7 @@ public class QuantumShareUser {
 	private String company;
 	private boolean verified;
 	private String verificationToken;
-	private LocalDate signUpDate;
+	private Instant signUpDate;
 	private String profilePic;
 	private boolean trial;
 

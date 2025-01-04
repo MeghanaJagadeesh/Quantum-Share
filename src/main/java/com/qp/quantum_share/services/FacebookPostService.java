@@ -126,7 +126,7 @@ public class FacebookPostService {
 							credits.setRemainingCredit(credits.getRemainingCredit() - 1);
 							qs.setCreditSystem(credits);
 							userDao.save(qs);
-							Map<String, Object> map = new LinkedHashMap();
+							Map<String, Object> map = new LinkedHashMap<String, Object>();
 							map.put("mediaType", mediaFile.getContentType());
 							map.put("mediaSize", mediaFile.getSize());
 							map.put("response", res.getBody());
@@ -203,7 +203,7 @@ public class FacebookPostService {
 						credits.setRemainingCredit(credits.getRemainingCredit() - 1);
 						qs.setCreditSystem(credits);
 						userDao.save(qs);
-						Map<String, Object> map = new LinkedHashMap();
+						Map<String, Object> map = new LinkedHashMap<String, Object>();
 						map.put("mediaType", mediaFile.getContentType());
 						map.put("mediaSize", mediaFile.getSize());
 						map.put("response", response);
