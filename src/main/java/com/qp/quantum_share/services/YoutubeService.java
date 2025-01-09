@@ -255,8 +255,11 @@ public class YoutubeService {
 	}
 
 	public ResponseEntity<ResponseStructure<Map<String, String>>> ytCheckAndRefreshAccessToken(QuantumShareUser user) {
-		System.out.println(":utube");
-		YoutubeUser youtubeUser = user.getSocialAccounts().getYoutubeUser();
+		SocialAccounts account = user.getSocialAccounts();
+		if(account==null)
+			return null;
+		
+		YoutubeUser youtubeUser =account.getYoutubeUser();
 		ResponseStructure<Map<String, String>> responseStructure = new ResponseStructure<>();
 		System.out.println("Checking");
 		if (youtubeUser == null) {

@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -524,12 +525,24 @@ public class QuantumShareUserService {
 			structure.setPlatform(null);
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
 		}
-		userTracking.applyCredit(user);
+		boolean creditApplied = userTracking.applyCredit(user);
+		if(!creditApplied) {
+			System.out.println("false");
+			structure.setCode(HttpStatus.NOT_ACCEPTABLE.value());
+			structure.setMessage("Your package has expired. Please Upgrade your package");
+			structure.setStatus("error");
+			structure.setData(null);
+			structure.setPlatform(null);
+			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_ACCEPTABLE);
+		}
 
-		// refresh token
-		redditService.checkAndRefreshAccessToken(user);
-		youtubeService.ytCheckAndRefreshAccessToken(user);
-		twitterService.checkAndRefreshAccessTokenTwitter(user);
+		CompletableFuture<Void> redditFuture = CompletableFuture
+				.runAsync(() -> redditService.checkAndRefreshAccessToken(user));
+		CompletableFuture<Void> youtubeFuture = CompletableFuture
+				.runAsync(() -> youtubeService.ytCheckAndRefreshAccessToken(user));
+		CompletableFuture<Void> twitterFuture = CompletableFuture
+				.runAsync(() -> twitterService.checkAndRefreshAccessTokenTwitter(user));
+		CompletableFuture.allOf(redditFuture, youtubeFuture, twitterFuture).join();
 
 		Map<String, Object> map = configure.getMap();
 		map.put("credit", user.getCreditSystem().getRemainingCredit());
@@ -541,7 +554,6 @@ public class QuantumShareUserService {
 		structure.setStatus("success");
 		structure.setPlatform(null);
 		return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
-
 	}
 
 	public ResponseEntity<ResponseStructure<String>> updatePassword(String password, String token) {

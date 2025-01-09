@@ -268,6 +268,42 @@ public class SocialMediaLoginController {
 		return telegramService.pollTelegramUpdates(user, userId);
 	}
 
+	@GetMapping("/connect-linkedin")
+    public ResponseEntity<ResponseStructure<String>> login() {
+		ResponseStructure<String> structure = new ResponseStructure<String>();
+		String token = request.getHeader("Authorization");
+        if (token == null || !token.startsWith("Bearer ")) {
+            // User is not authenticated or authorized
+            // Customize the error response
+            structure.setCode(115);
+            structure.setMessage("Missing or invalid authorization token");
+            structure.setStatus("error");
+            structure.setPlatform(null);
+            structure.setData(null);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                                 .body(structure);
+        }
+
+        String jwtToken = token.substring(7); // remove "Bearer " prefix
+		int userId = jwtUtilConfig.extractUserId(jwtToken);
+		QuantumShareUser user = userDao.fetchUser(userId);
+        
+		if (user == null) {
+			structure.setCode(HttpStatus.NOT_FOUND.value());
+			structure.setMessage("user doesn't exists, please signup");
+		 	structure.setStatus("error");
+			structure.setData(null);
+			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
+		}
+		
+        // User is authenticated and authorized
+        // Generate the authorization URL and return a redirect response
+        String authorizationUrl = linkedInProfileService.generateAuthorizationUrl();
+        return ResponseEntity.status(HttpStatus.FOUND)
+                             .header("Location", authorizationUrl)
+                             .build();
+    }
+	
 	@GetMapping("/linkedin/user/connect")
 	public ResponseEntity<Map<String, String>> getLinkedInAuthUrl() {
 		Map<String, String> authUrlParams = new HashMap<>();

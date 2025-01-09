@@ -18,10 +18,13 @@ public class QuantumShareUserTracking {
 
 	@Autowired
 	ConfigurationClass configure;
-	
+
 	@Value("${quantumshare.freeCredit}")
 	private int freeCredit;
-	
+
+	@Value("${quantumshare.subscribeCredit}")
+	private int subscribeCredit;
+
 	@Autowired
 	QuantumShareUserDao userDao;
 
@@ -37,7 +40,7 @@ public class QuantumShareUserTracking {
 				map.put("validcredit", true);
 				return map;
 			}
-		} else if (user.getSubscriptionDetails().isSubscribed()) {
+		} else if (user.getSubscriptionDetails()!=null&&user.getSubscriptionDetails().isSubscribed()) {
 			map.put("validcredit", true);
 			return map;
 		} else {
@@ -47,12 +50,17 @@ public class QuantumShareUserTracking {
 		}
 	}
 
-	
-	public void applyCredit(QuantumShareUser user) {
+	public boolean applyCredit(QuantumShareUser user) {
 		CreditSystem credits = user.getCreditSystem();
-		if(credits!=null) {
-			LocalDate creditedDate = credits.getCreditedDate();
-			if(creditedDate.isBefore(LocalDate.now())) {
+		boolean result = false;
+
+		if (credits == null) {
+			return false;
+		}
+		LocalDate creditedDate = credits.getCreditedDate();
+		if (user.isTrial()) {
+			System.out.println("User is in trial mode.");
+			if (creditedDate.isBefore(LocalDate.now())) {
 				credits.setTotalAppliedCredit(freeCredit);
 				credits.setCreditedDate(LocalDate.now());
 				credits.setCreditedTime(LocalTime.now());
@@ -60,6 +68,25 @@ public class QuantumShareUserTracking {
 				user.setCreditSystem(credits);
 				userDao.save(user);
 			}
+			result = true;
+		} else if (user.getSubscriptionDetails() != null && user.getSubscriptionDetails().isSubscribed()) {
+			System.out.println("User is subscribed.");
+			if (creditedDate.isBefore(LocalDate.now())) {
+				credits.setTotalAppliedCredit(subscribeCredit);
+				credits.setCreditedDate(LocalDate.now());
+				credits.setCreditedTime(LocalTime.now());
+				credits.setRemainingCredit(subscribeCredit);
+				user.setCreditSystem(credits);
+				userDao.save(user);
+			}
+			result = true;
+		} else {
+			System.out.println("User is neither in trial mode nor subscribed.");
+			result = false;
 		}
+
+		System.out.println("Final result: " + result);
+		return result;
 	}
+
 }

@@ -282,7 +282,9 @@ public class TwitterService {
 	}
 
 	public boolean checkAndRefreshAccessTokenTwitter(QuantumShareUser user) {
-		System.out.println("check refersh token");
+		SocialAccounts account = user.getSocialAccounts();
+		if(account==null)
+			return false;
 		TwitterUser twitter = user.getSocialAccounts().getTwitterUser();
 		if (twitter == null) {
 			return false;
@@ -291,6 +293,7 @@ public class TwitterService {
 		Instant tokenIssuedTime = twitter.getTokenGenerationTime();
 		Instant expirationTime = tokenIssuedTime.plusSeconds(2 * 60 * 60);
 		if (Instant.now().isAfter(expirationTime.minusSeconds(15 * 60))) {
+			System.out.println(true);
 			return refreshAccessToken(twitter, user);
 		}
 		return false;
@@ -449,7 +452,6 @@ public class TwitterService {
 			int userId) {
 		try {
 			QuantumShareUser user = userDao.fetchUser(userId);
-
 			if (mediaPost.getCaption() == null) {
 				mediaPost.setCaption(" ");
 			}

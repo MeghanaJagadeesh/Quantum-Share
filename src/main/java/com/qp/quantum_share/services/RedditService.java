@@ -196,8 +196,11 @@ public class RedditService {
 
 	// CHECK ACCESSTOKEN EXPIRATION
 	public ResponseEntity<ResponseStructure<Map<String, String>>> checkAndRefreshAccessToken(QuantumShareUser user) {
-		RedditDto redditUser = user.getSocialAccounts().getRedditDto();
-
+		SocialAccounts account = user.getSocialAccounts();
+		if(account==null)
+			return null;
+		RedditDto redditUser = account.getRedditDto();
+		
 		if (redditUser == null) {
 			return createErrorResponse("No Reddit account linked", HttpStatus.BAD_REQUEST);
 		}
