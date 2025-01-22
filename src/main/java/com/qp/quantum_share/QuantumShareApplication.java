@@ -16,7 +16,7 @@ public class QuantumShareApplication {
 		return new WebMvcConfigurer() {
 			@Override
 			public void addCorsMappings(CorsRegistry reg) {
-				reg.addMapping("/**").allowedOrigins("*");
+				reg.addMapping("/**").allowedOrigins("*").allowedMethods("*");
 			}
 		};
 	}

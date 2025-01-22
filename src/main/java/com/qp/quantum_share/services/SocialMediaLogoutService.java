@@ -22,6 +22,7 @@ import com.qp.quantum_share.dao.FacebookUserDao;
 import com.qp.quantum_share.dao.InstagramUserDao;
 import com.qp.quantum_share.dao.LinkedInPageDao;
 import com.qp.quantum_share.dao.LinkedInProfileDao;
+import com.qp.quantum_share.dao.PinterestUserDao;
 import com.qp.quantum_share.dao.PostsDao;
 import com.qp.quantum_share.dao.QuantumShareUserDao;
 import com.qp.quantum_share.dao.RedditDao;
@@ -34,6 +35,7 @@ import com.qp.quantum_share.dto.FacebookPageDetails;
 import com.qp.quantum_share.dto.InstagramUser;
 import com.qp.quantum_share.dto.LinkedInPageDto;
 import com.qp.quantum_share.dto.LinkedInProfileDto;
+import com.qp.quantum_share.dto.PinterestUser;
 import com.qp.quantum_share.dto.QuantumShareUser;
 import com.qp.quantum_share.dto.RedditDto;
 import com.qp.quantum_share.dto.SocialAccounts;
@@ -54,8 +56,8 @@ public class SocialMediaLogoutService {
 	@Autowired
 	ConfigurationClass configurationClass;
 
-//	@Autowired
-//	ResponseStructure<String> structure;
+	@Autowired
+	PinterestUserDao pinterestUserDao;
 
 	@Autowired
 	SocialAccountDao accountDao;
@@ -357,4 +359,33 @@ public class SocialMediaLogoutService {
 
 		}
 	}
+	
+	
+	   // Pinterest
+		public ResponseEntity<ResponseStructure<String>> disconnectPinterest(QuantumShareUser user) {
+			SocialAccounts accounts = user.getSocialAccounts();
+			ResponseStructure<String> structure = new ResponseStructure<String>();
+			if (accounts == null || accounts.getPinterestUser() == null) {
+				structure.setCode(404);
+				structure.setMessage("Pinterest account not linked to this user");
+				structure.setStatus("error");
+				structure.setData(null);
+				structure.setPlatform("pinterest");
+				return new ResponseEntity<>(structure, HttpStatus.NOT_FOUND);
+			}
+			PinterestUser deleteUser = accounts.getPinterestUser();
+			accounts.setPinterestUser(null);
+			user.setSocialAccounts(accounts);
+			userDao.save(user);
+
+			pinterestUserDao.deleteUser(deleteUser);
+			analyticsPostService.deletePosts(user, "pinterest");
+			structure.setCode(HttpStatus.OK.value());
+			structure.setMessage("Pinterest Disconnected Successfully");
+			structure.setPlatform("pinterest");
+			structure.setStatus("success");
+			structure.setData(null);
+			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
+		}
+
 }

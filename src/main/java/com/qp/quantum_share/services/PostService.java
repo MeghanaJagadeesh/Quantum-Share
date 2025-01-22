@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.qp.quantum_share.configuration.ConfigurationClass;
 import com.qp.quantum_share.dao.FacebookUserDao;
 import com.qp.quantum_share.dao.InstagramUserDao;
+import com.qp.quantum_share.dao.PinterestUserDao;
 import com.qp.quantum_share.dao.QuantumShareUserDao;
 import com.qp.quantum_share.dao.TelegramUserDao;
 import com.qp.quantum_share.dao.YoutubeUserDao;
@@ -77,6 +78,12 @@ public class PostService {
 
 	@Autowired
 	RedditService redditService;
+	
+	@Autowired
+	PinterestService pinterestService;
+	
+	@Autowired
+	PinterestUserDao pinterestUserDao;
 
 	public ResponseEntity<List<Object>> postOnFb(MediaPost mediaPost, MultipartFile mediaFile, QuantumShareUser user,
 			int userId) {
@@ -457,5 +464,35 @@ public class PostService {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(responseStructure);
 		}
 	}
+	
+	
+	// Pinterest	
+	public ResponseEntity<ResponseWrapper> postOnPinterest(MediaPost mediaPost, MultipartFile mediaFile,
+			SocialAccounts socialAccounts, int userId) {
+		ResponseStructure<String> structure = new ResponseStructure<String>();
+		if (mediaPost.getMediaPlatform().contains("pinterest")) {
+			if (socialAccounts == null || socialAccounts.getPinterestUser() == null) {
+				structure.setMessage("Please Connect Your Pinterest Account");
+				structure.setCode(HttpStatus.NOT_FOUND.value());
+				structure.setPlatform("pinterest");
+				structure.setStatus("error");
+				structure.setData(null);
+				return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure), HttpStatus.NOT_FOUND);
+			}
+			if (socialAccounts.getPinterestUser() != null) {
+				return pinterestService.postMediaToProfile(mediaPost, mediaFile,
+						pinterestUserDao.findById(socialAccounts.getPinterestUser().getPinterestId()), userId);
+			} else {
+				structure.setMessage("Please Connect Your Pinterest Account");
+				structure.setCode(HttpStatus.NOT_FOUND.value());
+				structure.setPlatform("pinterest");
+				structure.setStatus("error");
+				structure.setData(null);
+				return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure), HttpStatus.NOT_FOUND);
+			}
+		}
+		return null;
+	}
+
 
 }

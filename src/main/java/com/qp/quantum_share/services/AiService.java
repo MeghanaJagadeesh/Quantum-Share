@@ -2,8 +2,6 @@ package com.qp.quantum_share.services;
 
 import java.util.Collections;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -18,8 +16,8 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.qp.quantum_share.response.ResponseStructure;
 
@@ -59,130 +57,95 @@ public class AiService {
 	@Autowired
 	ObjectMapper objectMapper;
 
-//	 public ResponseEntity<ResponseStructure<String>> aiChat(String userMessage, String systemMessage) {
-//	        String url = "https://api.openai.com/v1/chat/completions";
-//
-//	        headers.setContentType(MediaType.APPLICATION_JSON);
-//	        headers.setBearerAuth(openAIKey); // Assuming openAIKey is defined somewhere
-//
-//	        String requestBody = "{\n" +
-//	                "    \"model\": \"gpt-3.5-turbo\",\n" +
-//	                "    \"messages\": [\n" +
-//	                "        {\n" +
-//	                "            \"role\": \"system\",\n" +
-//	                "            \"content\": \"" + systemMessage + "\"\n" +
-//	                "        },\n" +
-//	                "        {\n" +
-//	                "            \"role\": \"user\",\n" +
-//	                "            \"content\": \"" + userMessage + "\"\n" +
-//	                "        }\n" +
-//	                "    ]\n" +
-//	                "}";
-//
-//	        HttpEntity<String> requestEntity = new HttpEntity<>(requestBody, headers);
-//
-//	        try {
-//	            ResponseEntity<String> responseEntity = restTemplate.exchange(url, HttpMethod.POST, requestEntity, String.class);
-//	            int statusCode = responseEntity.getStatusCode().value();
-//	            String responseBody = responseEntity.getBody();
-//	            
-//	            responseStructure.setStatus("Success");
-//	            responseStructure.setMessage("OK");
-//	            responseStructure.setCode(statusCode);
-//
-//	            // Parse the response body to extract the "content" field
-//	            JsonNode jsonNode = objectMapper.readTree(responseBody);
-//	            String content = jsonNode.path("choices").get(0).path("message").path("content").asText();
-//	            responseStructure.setData(content);
-//
-//	            return ResponseEntity.status(statusCode).body(responseStructure);
-//	        } catch (Exception e) {
-//	            responseStructure.setStatus("Error");
-//	            responseStructure.setMessage("Failed");
-//	            responseStructure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
-//	            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseStructure);
-//	        }
-//	    }
-
-	// METHOD TO GENERATE CHAT [GEMINI API]
 	public ResponseStructure<String> generateContent(String userQuestion) {
-		ResponseStructure<String> responseStructure = new ResponseStructure<String>();
+	    String apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
 
-		try {
-			// Your existing logic to generate content
-			RestTemplate restTemplate = new RestTemplate();
+	    // Construct request body
+	    String requestBody = "{\n" +
+	            "  \"contents\": [\n" +
+	            "    {\n" +
+	            "      \"role\": \"user\",\n" +
+	            "      \"parts\": [\n" +
+	            "        {\n" +
+	            "          \"text\": \"what is your name\"\n" +
+	            "        }\n" +
+	            "      ]\n" +
+	            "    },\n" +
+	            "    {\n" +
+	            "      \"role\": \"model\",\n" +
+	            "      \"parts\": [\n" +
+	            "        {\n" +
+	            "          \"text\": \"" + defaultText + "\"\n" +
+	            "        }\n" +
+	            "      ]\n" +
+	            "    },\n" +
+	            "    {\n" +
+	            "      \"role\": \"user\",\n" +
+	            "      \"parts\": [\n" +
+	            "        {\n" +
+	            "          \"text\": \"" + userQuestion + "\"\n" +
+	            "        }\n" +
+	            "      ]\n" +
+	            "    }\n" +
+	            "  ]\n" +
+	            "}";
 
-			String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent";
+	    // Set headers
+	    HttpHeaders headers = new HttpHeaders();
+	    headers.set("Content-Type", "application/json");
 
-			UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(url).queryParam("key", apiKey);
+	    // Create HttpEntity with body and headers
+	    HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
 
-			HttpHeaders headers = new HttpHeaders();
-			headers.setContentType(MediaType.APPLICATION_JSON);
+	    // Make POST request
+	    ResponseEntity<String> response = restTemplate.exchange(apiUrl, HttpMethod.POST, entity, String.class);
 
-			String requestBody = "{\n" + "  \"contents\": [\n" + "    {\n" + "      \"role\": \"user\",\n"
-					+ "      \"parts\": [\n" + "        {\n" + "          \"text\": \"what is your name\"\n"
-					+ "        }\n" + "      ]\n" + "    },\n" + "     {\n" + "      \"role\": \"model\",\n"
-					+ "      \"parts\": [\n" + "        {\n" + "          \"text\": \"" + defaultText + "\"\n"
-					+ "        }\n" + "      ]\n" + "    },\n" + "     {\n" + "      \"role\": \"user\",\n"
-					+ "      \"parts\": [\n" + "        {\n" + "          \"text\": \"" + userQuestion + "\"\n"
-					+ "        }\n" + "      ]\n" + "    }\n" + "  ]\n" + "}";
+	    try {
+	        // Parse JSON response
+	        ObjectMapper objectMapper = new ObjectMapper();
+	        JsonNode rootNode = objectMapper.readTree(response.getBody());
+	        JsonNode textNode = rootNode.path("candidates").get(0).path("content").path("parts").get(0).path("text");
 
-			HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
+	        // Extract and format response
+	        ResponseStructure<String> responseStructure = new ResponseStructure<>();
+	        responseStructure.setStatus("success");
+	        responseStructure.setMessage("AI content generated successfully");
+	        responseStructure.setData(textNode.asText());
+	        return responseStructure;
 
-			ResponseEntity<String> responseEntity = restTemplate.postForEntity(builder.toUriString(), entity,
-					String.class);
-
-			JSONObject jsonResponse = new JSONObject(responseEntity.getBody());
-			JSONArray candidates = jsonResponse.getJSONArray("candidates");
-			JSONObject content = candidates.getJSONObject(0).getJSONObject("content");
-			JSONArray parts = content.getJSONArray("parts");
-			String text = parts.getJSONObject(0).getString("text");
-
-			responseStructure.setStatus("Success");
-			responseStructure.setMessage("Content generated successfully");
-			responseStructure.setCode(HttpStatus.OK.value());
-			responseStructure.setData(text);
-			responseStructure.setPlatform(null);
-		} catch (Exception e) {
-			responseStructure.setStatus("Error");
-			responseStructure.setMessage("Failed to generate content. Internal server error.");
-			responseStructure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
-			responseStructure.setData(null);
-			responseStructure.setPlatform(null);
-		}
-
-		return responseStructure;
+	    } catch (Exception e) {
+	        // Handle parsing or other exceptions
+	        ResponseStructure<String> responseStructure = new ResponseStructure<>();
+	        responseStructure.setStatus("error");
+	        responseStructure.setMessage("Failed to parse AI response");
+	        responseStructure.setData(null);
+	        responseStructure.setCode(200);
+	        return responseStructure;
+	    }
 	}
 
-	public ResponseStructure<String> handleEmptyOrNullRequest() {
-		ResponseStructure<String> responseStructure = new ResponseStructure<String>();
-		responseStructure.setStatus("Error");
-		responseStructure.setMessage("Request parameter 'userMessage' is empty or null");
-		responseStructure.setCode(HttpStatus.BAD_REQUEST.value());
-		responseStructure.setData(null);
-		responseStructure.setPlatform(null);
-		return responseStructure;
-	}
+	    public ResponseStructure<String> handleEmptyOrNullRequest() {
+	        ResponseStructure<String> responseStructure = new ResponseStructure<>();
+	        responseStructure.setStatus("error");
+	        responseStructure.setMessage("User message cannot be null or empty");
+	        responseStructure.setData(null);
+	        return responseStructure;
+	    }
 
-	public ResponseStructure<String> handleExceededLimits() {
-		ResponseStructure<String> responseStructure = new ResponseStructure<String>();
-		responseStructure.setStatus("Error");
-		responseStructure.setMessage("Exceeded limits. Please try again later.");
-		responseStructure.setCode(HttpStatus.TOO_MANY_REQUESTS.value());
-		responseStructure.setData(null);
-		responseStructure.setPlatform(null);
-		return responseStructure;
-	}
-
-	public ResponseStructure<String> handleEmptyGeneratedContent() {
-		ResponseStructure<String> responseStructure = new ResponseStructure<String>();
-		responseStructure.setStatus("Error");
-		responseStructure.setMessage("Generated content is empty");
-		responseStructure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
-		responseStructure.setData(null);
-		responseStructure.setPlatform(null);
-		return responseStructure;
-	}
+	    public ResponseStructure<String> handleExceededLimits() {
+	        ResponseStructure<String> responseStructure = new ResponseStructure<>();
+	        responseStructure.setStatus("error");
+	        responseStructure.setMessage("API request limits exceeded");
+	        responseStructure.setData(null);
+	        return responseStructure;
+	    }
+	    public ResponseStructure<String> handleEmptyGeneratedContent() {
+	        ResponseStructure<String> responseStructure = new ResponseStructure<>();
+	        responseStructure.setStatus("error");
+	        responseStructure.setMessage("Failed to generate AI content");
+	        responseStructure.setData(null);
+	        return responseStructure;
+	    }
 
 	public byte[] generateImage(String textPrompt) {
 		headers.setContentType(MediaType.APPLICATION_JSON);

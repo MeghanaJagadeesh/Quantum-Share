@@ -97,7 +97,6 @@ public class InstagramService {
 
 		String fileUrl = postOnServer.uploadFile(mediaFile, "posts/");
 
-		
 		if (fileUrl == null) {
 			structure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			structure.setMessage("An error occured while uploading on server");
@@ -317,10 +316,11 @@ public class InstagramService {
 				instagramUser.setInstaUserId(instaId);
 				instagramUser.setInstaUsername(username.replace("\"", ""));
 				instagramUser.setFollwersCount(
-					    instaUser.get("followers_count") != null && !instaUser.get("followers_count").isNull()
-					        ? instaUser.get("followers_count").asInt()
-					        : 0 // Default value
-					);JsonNode jsonResponse = objectMapper.readTree(profile.getBody());
+						instaUser.get("followers_count") != null && !instaUser.get("followers_count").isNull()
+								? instaUser.get("followers_count").asInt()
+								: 0 // Default value
+				);
+				JsonNode jsonResponse = objectMapper.readTree(profile.getBody());
 				instagramUser.setPictureUrl(
 						jsonResponse.has("profile_picture_url") ? jsonResponse.get("profile_picture_url").asText()
 								: null);
@@ -428,7 +428,6 @@ public class InstagramService {
 		} catch (BadRequest e) {
 			throw new BadRequestException(e.getMessage());
 		}
-
 	}
 
 	private List<String> fetchID(String access_token) {

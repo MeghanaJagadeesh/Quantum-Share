@@ -155,5 +155,24 @@ public class SocialMediaLogoutController {
 		}
 		return logoutService.disconnectTwitterAccount(user);
 	}
+	
+	
+	@GetMapping("/disconnect/pinterest")
+	public ResponseEntity<ResponseStructure<String>> disconnectPinterest() {
+		Object userId1 = commonMethod.validateToken(request.getHeader("Authorization"));
+		int userId = Integer.parseInt(userId1.toString());
+		QuantumShareUser user = userDao.fetchUser(userId);
+		if (user == null) {
+			ResponseStructure<String> structure = new ResponseStructure<String>();
+
+			structure.setCode(HttpStatus.NOT_FOUND.value());
+			structure.setMessage("user doesn't exists, please signup");
+			structure.setStatus("error");
+			structure.setData(null);
+			structure.setPlatform("pinterest");
+			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
+		}
+		return logoutService.disconnectPinterest(user);
+	}
 
 }

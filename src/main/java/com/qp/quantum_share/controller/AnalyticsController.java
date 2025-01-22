@@ -1,5 +1,7 @@
 package com.qp.quantum_share.controller;
 
+import java.util.Map;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -86,8 +88,9 @@ public class AnalyticsController {
 	}
 
 	@GetMapping("/get/graph/data")
-	public ResponseEntity<ResponseStructure<String>> getCompleteAnalytics() {
-		ResponseStructure<String> structure = new ResponseStructure<String>();
+	public ResponseEntity<ResponseStructure<Map<String, Map<String, Integer>>>> getCompleteAnalytics() {
+		System.out.println("controller");
+		ResponseStructure<Map<String, Map<String, Integer>>> structure = new ResponseStructure<>();
 		Object userId = commonMethod.validateToken(request.getHeader("Authorization"));
 		QuantumShareUser user = userDao.fetchUser(Integer.parseInt(userId.toString()));
 		if (user == null) {
@@ -96,8 +99,8 @@ public class AnalyticsController {
 			structure.setStatus("error");
 			structure.setData(null);
 			structure.setPlatform("facebook");
-			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
+			return new ResponseEntity<>(structure, HttpStatus.NOT_FOUND);
 		}
-		return analyticsPostService.getCompleteAnakytics(user);
+		return analyticsPostService.getCompleteAnalytics(user);
 	}
 }

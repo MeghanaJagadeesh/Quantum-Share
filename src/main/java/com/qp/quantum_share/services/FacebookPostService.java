@@ -31,6 +31,7 @@ import com.qp.quantum_share.dto.MediaPost;
 import com.qp.quantum_share.dto.QuantumShareUser;
 import com.qp.quantum_share.exception.CommonException;
 import com.qp.quantum_share.exception.FBException;
+import com.qp.quantum_share.helper.UTCTime;
 import com.qp.quantum_share.response.ErrorResponse;
 import com.qp.quantum_share.response.ResponseStructure;
 import com.qp.quantum_share.response.SuccessResponse;
@@ -45,6 +46,8 @@ import com.restfb.types.ResumableUploadTransferResponse;
 
 @Service
 public class FacebookPostService {
+	@Autowired
+	UTCTime utcTime;
 
 	@Autowired
 	ConfigurationClass config;
@@ -61,8 +64,8 @@ public class FacebookPostService {
 	@Autowired
 	HttpHeaders headers;
 
-	@Autowired
-	MultiValueMap<String, Object> body;
+//	@Autowired
+//	;
 
 	@Autowired
 	HttpEntity<MultiValueMap<String, Object>> httpEntity;
@@ -88,15 +91,14 @@ public class FacebookPostService {
 			throw new CommonException(e.getMessage());
 		}
 	}
-	
-	
 
 	public ResponseEntity<List<Object>> postMediaToPage(MediaPost mediaPost, MultipartFile mediaFile, FaceBookUser user,
 			QuantumShareUser qsuser, int userId) {
+		System.out.println("postMediaToPage");
 		List<Object> mainresponse = config.getList();
 		mainresponse.clear();
 		HttpHeaders responseHeaders = new HttpHeaders();
-		
+
 		try {
 			List<FacebookPageDetails> pages = new ArrayList<>(user.getPageDetails());
 			if (pages.isEmpty()) {
@@ -113,31 +115,41 @@ public class FacebookPostService {
 				String facebookPageId = page.getFbPageId();
 				String pageAccessToken = page.getFbPageAceessToken();
 				FacebookClient client = config.getFacebookClient(pageAccessToken);
-				FacebookType response;
 				if (isVideo(mediaFile)) {
 					if (mediaFile.getSize() <= MAX_FILE_SIZE) {
+						boolean schedule = mediaPost.getScheduledTime() != null && mediaPost.getUserTimeZone() != null;
 						ResponseEntity<JsonNode> res = postVideo(facebookPageId, pageAccessToken, mediaFile,
-								mediaPost.getCaption());
+								mediaPost.getCaption(), mediaPost, schedule);
 						if (res.getStatusCode().is2xxSuccessful()) {
-							analyticsPostService.savePost(res.getBody().get("id").asText(), facebookPageId, qsuser,
-									mediaFile.getContentType(), "facebook", page.getPageName());
-							QuantumShareUser qs = userDao.fetchUser(userId);
-							CreditSystem credits = qs.getCreditSystem();
-							credits.setRemainingCredit(credits.getRemainingCredit() - 1);
-							qs.setCreditSystem(credits);
-							userDao.save(qs);
-							Map<String, Object> map = new LinkedHashMap<String, Object>();
-							map.put("mediaType", mediaFile.getContentType());
-							map.put("mediaSize", mediaFile.getSize());
-							map.put("response", res.getBody());
-							SuccessResponse succesresponse = config.getSuccessResponse();
-							succesresponse.setCode(HttpStatus.OK.value());
-							succesresponse.setMessage("Posted On " + page.getPageName() + " FaceBook Page");
-							succesresponse.setStatus("success");
-							succesresponse.setPlatform("facebook");
-							succesresponse.setRemainingCredits(credits.getRemainingCredit());
-							succesresponse.setData(map);
-							mainresponse.add(succesresponse);
+							if (schedule) {
+								SuccessResponse succesresponse = config.getSuccessResponse();
+								succesresponse.setCode(HttpStatus.OK.value());
+								succesresponse.setMessage("Post Scheduled On " + page.getPageName() + " FaceBook Page");
+								succesresponse.setStatus("success");
+								succesresponse.setData(null);
+								succesresponse.setPlatform("facebook");
+								mainresponse.add(succesresponse);
+							} else {
+								analyticsPostService.savePost(res.getBody().get("id").asText(), facebookPageId, qsuser,
+										mediaFile.getContentType(), "facebook", page.getPageName());
+								QuantumShareUser qs = userDao.fetchUser(userId);
+								CreditSystem credits = qs.getCreditSystem();
+								credits.setRemainingCredit(credits.getRemainingCredit() - 1);
+								qs.setCreditSystem(credits);
+								userDao.save(qs);
+								Map<String, Object> map = new LinkedHashMap<String, Object>();
+								map.put("mediaType", mediaFile.getContentType());
+								map.put("mediaSize", mediaFile.getSize());
+								map.put("response", res.getBody());
+								SuccessResponse succesresponse = config.getSuccessResponse();
+								succesresponse.setCode(HttpStatus.OK.value());
+								succesresponse.setMessage("Posted On " + page.getPageName() + " FaceBook Page");
+								succesresponse.setStatus("success");
+								succesresponse.setPlatform("facebook");
+								succesresponse.setRemainingCredits(credits.getRemainingCredit());
+								succesresponse.setData(map);
+								mainresponse.add(succesresponse);
+							}
 						} else {
 							ErrorResponse errResponse = config.getErrorResponse();
 							errResponse.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
@@ -190,36 +202,71 @@ public class FacebookPostService {
 					}
 
 				} else {
+					System.out.println("photo");
+					String apiurl = "https://graph.facebook.com/v21.0/";
+					headers.setBearerAuth(pageAccessToken);
+					MultiValueMap<String, Object> map = config.getMultiValueMap();
+					ByteArrayResource mediaResource = new ByteArrayResource(mediaFile.getBytes()) {
+						@Override
+						public String getFilename() {
+							return mediaFile.getOriginalFilename();
+						}
+					};
+					boolean schedule = mediaPost.getScheduledTime() != null && mediaPost.getUserTimeZone() != null;
+					if (schedule) {
+						System.out.println("scheduled");
+						long unixTime = utcTime.ConvertScheduledTimeFromLocal(mediaPost.getScheduledTime(),
+								mediaPost.getUserTimeZone());
+						map.add("published", false);
+						map.add("scheduled_publish_time", unixTime);
+					}
+					map.add("source", mediaResource);
+					map.add("message", mediaPost.getCaption());
+					HttpEntity<MultiValueMap<String, Object>> requestEntity = config.getHttpEntityWithMap(map, headers);
+					System.out.println("before");
+					ResponseEntity<JsonNode> photoresponse = restTemplate.exchange(apiurl + facebookPageId + "/photos",
+							HttpMethod.POST, requestEntity, JsonNode.class);
+					System.out.println("after");
 					String pagename = page.getPageName();
-					response = client.publish(facebookPageId + "/photos", FacebookType.class,
-							BinaryAttachment.with("source", mediaFile.getBytes()),
-							Parameter.with("message", mediaPost.getCaption()));
-					if (response.getId() != null) {
-						analyticsPostService.savePost(response.getId(), facebookPageId, qsuser,
-								mediaFile.getContentType(), "facebook", pagename);
-						SuccessResponse succesresponse = config.getSuccessResponse();
-						QuantumShareUser qs = userDao.fetchUser(userId);
-						CreditSystem credits = qs.getCreditSystem();
-						credits.setRemainingCredit(credits.getRemainingCredit() - 1);
-						qs.setCreditSystem(credits);
-						userDao.save(qs);
-						Map<String, Object> map = new LinkedHashMap<String, Object>();
-						map.put("mediaType", mediaFile.getContentType());
-						map.put("mediaSize", mediaFile.getSize());
-						map.put("response", response);
-						succesresponse.setCode(HttpStatus.OK.value());
-						succesresponse.setMessage("Posted On " + page.getPageName() + " FaceBook Page");
-						succesresponse.setStatus("success");
-						succesresponse.setData(map);
-						succesresponse.setRemainingCredits(credits.getRemainingCredit());
-						succesresponse.setPlatform("facebook");
-						mainresponse.add(succesresponse);
+					if (photoresponse.getStatusCode().is2xxSuccessful()) {
+						if (photoresponse.getBody().get("id") != null) {
+							System.out.println(photoresponse.getBody());
+							if (schedule) {
+								SuccessResponse succesresponse = config.getSuccessResponse();
+								succesresponse.setCode(HttpStatus.OK.value());
+								succesresponse.setMessage("Post Scheduled On " + page.getPageName() + " FaceBook Page");
+								succesresponse.setStatus("success");
+								succesresponse.setData(null);
+								succesresponse.setPlatform("facebook");
+								mainresponse.add(succesresponse);
+							} else {
+								analyticsPostService.savePost(photoresponse.getBody().get("id").asText(),
+										facebookPageId, qsuser, mediaFile.getContentType(), "facebook", pagename);
+								SuccessResponse succesresponse = config.getSuccessResponse();
+								QuantumShareUser qs = userDao.fetchUser(userId);
+								CreditSystem credits = qs.getCreditSystem();
+								credits.setRemainingCredit(credits.getRemainingCredit() - 1);
+								qs.setCreditSystem(credits);
+								userDao.save(qs);
+								Map<String, Object> map1 = new LinkedHashMap<String, Object>();
+								map1.put("mediaType", mediaFile.getContentType());
+								map1.put("mediaSize", mediaFile.getSize());
+								map1.put("response", photoresponse.getBody());
+								succesresponse.setCode(HttpStatus.OK.value());
+								succesresponse.setMessage("Posted On " + page.getPageName() + " FaceBook Page");
+								succesresponse.setStatus("success");
+								succesresponse.setData(map1);
+								succesresponse.setRemainingCredits(credits.getRemainingCredit());
+								succesresponse.setPlatform("facebook");
+								mainresponse.add(succesresponse);
+							}
+						}
 					} else {
 						ErrorResponse errResponse = config.getErrorResponse();
 						errResponse.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 						errResponse.setMessage("Request Failed to post on " + page.getPageName());
 						errResponse.setStatus("error");
-						errResponse.setData(response);
+						errResponse.setData(photoresponse.getBody());
 						errResponse.setPlatform("facebook");
 						mainresponse.add(errResponse);
 					}
@@ -249,12 +296,13 @@ public class FacebookPostService {
 		} catch (InternalServerError error) {
 			throw new CommonException(error.getMessage());
 		} catch (Exception e) {
+			e.printStackTrace();
 			throw new CommonException(e.getMessage());
 		}
 	}
 
 	private ResponseEntity<JsonNode> postVideo(String facebookPageId, String pageAccessToken, MultipartFile mediaFile,
-			String message) {
+			String message, MediaPost mediaPost, boolean schedule) {
 		try {
 			String url = "https://graph.facebook.com/v20.0/" + facebookPageId + "/videos";
 			headers.setContentType(MediaType.MULTIPART_FORM_DATA);
@@ -265,11 +313,19 @@ public class FacebookPostService {
 					return mediaFile.getOriginalFilename(); // Return the original file name
 				}
 			};
+			MultiValueMap<String, Object> body = config.getMultiValueMap();
 			body.add("file", mediaResource);
 			if (mediaFile.isEmpty()) {
 				throw new IllegalArgumentException("File is empty.");
 			}
 			body.add("description", message);
+			if (schedule) {
+				System.out.println("scheduled");
+				long unixTime = utcTime.ConvertScheduledTimeFromLocal(mediaPost.getScheduledTime(),
+						mediaPost.getUserTimeZone());
+				body.add("published", false);
+				body.add("scheduled_publish_time", unixTime);
+			}
 			HttpEntity<MultiValueMap<String, Object>> requestEntity = config.getHttpEntityWithMap(body, headers);
 			ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.POST, requestEntity,
 					JsonNode.class);

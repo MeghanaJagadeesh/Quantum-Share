@@ -42,6 +42,9 @@ public class LinkedInProfilePostService {
 	@Autowired
 	QuantumShareUserDao userDao;
 
+	@Autowired
+	AnalyticsPostService analyticsPostService;
+
 	public ResponseStructure<String> uploadImageToLinkedIn(MultipartFile mediaFile, String caption,
 			LinkedInProfileDto linkedInProfileUser, int userId) {
 		ResponseStructure<String> response = new ResponseStructure<String>();
@@ -102,8 +105,8 @@ public class LinkedInProfilePostService {
 			HttpHeaders headers = new HttpHeaders();
 			headers.setContentType(MediaType.APPLICATION_JSON);
 			headers.set("Authorization", "Bearer " + accessToken);
-			System.out.println("recipes : "+recipeType);
-			System.out.println("urn:li:person:"+profileURN);
+			System.out.println("recipes : " + recipeType);
+			System.out.println("urn:li:person:" + profileURN);
 
 			String requestBody = "{\"registerUploadRequest\": {\"recipes\": [\"" + recipeType
 					+ "\"],\"owner\": \"urn:li:person:" + profileURN
@@ -118,7 +121,7 @@ public class LinkedInProfilePostService {
 			System.out.println("bb " + responseEntity.getBody());
 			if (responseEntity.getStatusCode() == HttpStatus.OK) {
 				return responseEntity.getBody();
-			} 
+			}
 		} catch (Exception e) {
 			System.err.println(e.getMessage());
 			e.printStackTrace();
@@ -183,11 +186,16 @@ public class LinkedInProfilePostService {
 					HttpMethod.POST, requestEntity, String.class);
 
 			if (responseEntity.getStatusCode() == HttpStatus.CREATED) {
+				System.out.println("*****");
+				System.out.println(responseEntity.getBody());
 				QuantumShareUser user = userDao.fetchUser(userId);
 				CreditSystem credits = user.getCreditSystem();
 				credits.setRemainingCredit(credits.getRemainingCredit() - 1);
 				user.setCreditSystem(credits);
 				userDao.save(user);
+
+//				analyticsPostService.savePost(response.getId(), instagramUserId, user, "image", "instagram",
+//						profileName);
 				response.setStatus("Success");
 				response.setPlatform("linkedin");
 				response.setMessage("Posted To LinkedIn Profile");
@@ -220,7 +228,8 @@ public class LinkedInProfilePostService {
 					.get("com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest").get("uploadUrl").asText();
 			String mediaAsset = uploadResponse.get("value").get("asset").asText();
 			if (uploadImagePage(uploadUrl, file, accessToken, userId)) {
-				return createLinkedInPostPage(mediaAsset, caption, mediaType, pageURN, accessToken, userId);
+				return createLinkedInPostPage(mediaAsset, caption, mediaType, pageURN, accessToken, userId,
+						linkedInPageUser.getLinkedinPageName(), file.getSize());
 			} else {
 				response.setStatus("error");
 				response.setMessage("Failed to upload media to LinkedIn");
@@ -288,7 +297,7 @@ public class LinkedInProfilePostService {
 	}
 
 	public ResponseStructure<String> createLinkedInPostPage(String mediaAsset, String caption, String mediaType,
-			String pageURN, String accessToken, int userId) {
+			String pageURN, String accessToken, int userId, String pageName, long size) {
 		ResponseStructure<String> response = new ResponseStructure<String>();
 		try {
 			headers.setContentType(MediaType.APPLICATION_JSON);
@@ -313,11 +322,17 @@ public class LinkedInProfilePostService {
 					HttpMethod.POST, requestEntity, JsonNode.class);
 
 			if (responseEntity.getStatusCode() == HttpStatus.CREATED) {
+				System.out.println("***");
+				System.out.println(requestEntity.getBody());
 				QuantumShareUser user = userDao.fetchUser(userId);
 				CreditSystem credits = user.getCreditSystem();
 				credits.setRemainingCredit(credits.getRemainingCredit() - 1);
 				user.setCreditSystem(credits);
 				userDao.save(user);
+				saveLinkedInPost(responseEntity.getBody().get("id").asText(), pageURN, user,
+						shareMediaCategory.equals("IMAGE") ? "image" : "video", "linkedinPage", pageName, accessToken,
+						size);
+
 				response.setStatus("success");
 				response.setMessage("Posted To LinkedIn Page");
 				response.setCode(HttpStatus.CREATED.value());
@@ -328,9 +343,67 @@ public class LinkedInProfilePostService {
 				response.setCode(responseEntity.getStatusCode().value());
 			}
 		} catch (Exception e) {
+			e.printStackTrace();
 			throw new CommonException(e.getMessage());
 		}
 		return response;
+	}
+
+	private void saveLinkedInPost(String postId, String pageURN, QuantumShareUser user, String type, String profileType,
+			String pageName, String accessToken, long size) {
+		System.out.println("post id " + postId);
+		if (type.equals("video")) {
+			System.out.println("It is a video. Holding for a while...");
+			try {
+				if (size < 20 * 1024 * 1024) {
+					Thread.sleep(9000);
+				} else if (size > 20 * 1024 * 1024) {
+					Thread.sleep(15000);
+				}
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			System.out.println("Video processing resumed.");
+		}
+		try {
+			System.out.println("savemet");
+			HttpHeaders headers = new HttpHeaders();
+			headers.setBearerAuth(accessToken);
+			headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+			headers.set("LinkedIn-Version", "202411");
+			String url = "https://api.linkedin.com/rest/posts/";
+			HttpEntity<String> requestEntity = config.getHttpEntity(headers);
+			ResponseEntity<JsonNode> response = restTemplate.exchange(url + postId, HttpMethod.GET, requestEntity,
+					JsonNode.class);
+			JsonNode body = response.getBody();
+			System.out.println("response 1 " + response.getBody());
+			String mediaId = null;
+			if (response.getStatusCode().is2xxSuccessful()) {
+				mediaId = body.path("content").path("media").path("id").asText();
+				System.out.println("media id " + mediaId);
+			}
+			String postUrl = null;
+			String apiUrl = "https://api.linkedin.com/rest/";
+			if (mediaId.startsWith("urn:li:image")) {
+				apiUrl = apiUrl + "images/" + mediaId;
+
+			} else if (mediaId.startsWith("urn:li:video")) {
+				apiUrl = apiUrl + "videos/" + mediaId;
+			}
+			ResponseEntity<JsonNode> response1 = restTemplate.exchange(apiUrl, HttpMethod.GET, requestEntity,
+					JsonNode.class);
+			JsonNode body2 = response1.getBody();
+			System.out.println("response 2 " + body2);
+			if (response.getStatusCode().is2xxSuccessful()) {
+				postUrl = body2.get("downloadUrl").asText();
+			}
+
+			analyticsPostService.savePost(postId, pageURN, user, type, profileType, pageName, postUrl);
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new CommonException(e.getMessage());
+		}
+
 	}
 
 	private String determineRecipeType(MultipartFile file) {
@@ -442,130 +515,3 @@ public class LinkedInProfilePostService {
 	}
 
 }
-
-//	private void handleFailureResponse(ResponseStructure<String> response, HttpStatusCode httpStatusCode,
-//			String responseBody) {
-//		if (httpStatusCode == org.springframework.http.HttpStatus.BAD_REQUEST) {
-//			response.setStatus("Failure");
-//			response.setMessage("Failed to create LinkedIn post: Caption is invalid");
-//			response.setCode(HttpStatus.BAD_REQUEST.value());
-//			response.setData(null);
-//			response.setPlatform("linkedin");
-//		} else if (httpStatusCode == HttpStatus.UNAUTHORIZED) {
-//			response.setStatus("Failure");
-//			response.setMessage("Failed to create LinkedIn post: Unauthorized access");
-//			response.setCode(HttpStatus.UNAUTHORIZED.value());
-//			response.setData(null);
-//			response.setPlatform("linkedin");
-//		} else if (httpStatusCode == HttpStatus.UNPROCESSABLE_ENTITY) {
-//			response.setStatus("Failure");
-//			response.setMessage("Failed to create LinkedIn post: Media asset error");
-//			response.setCode(HttpStatus.UNPROCESSABLE_ENTITY.value());
-//			response.setData(null);
-//		} else if (httpStatusCode == HttpStatus.TOO_MANY_REQUESTS) {
-//			response.setStatus("Failure");
-//			response.setMessage("Failed to create LinkedIn post: Too Many Requests");
-//			response.setCode(HttpStatus.TOO_MANY_REQUESTS.value());
-//			response.setPlatform("linkedin");
-//			response.setData(null);
-//		} else if (httpStatusCode == HttpStatus.INTERNAL_SERVER_ERROR) {
-//			response.setStatus("Failure");
-//			response.setMessage("Failed to create LinkedIn post: Internal server error");
-//			response.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
-//			response.setPlatform("linkedin");
-//			response.setData(null);
-//		} else if (httpStatusCode == HttpStatus.SERVICE_UNAVAILABLE) {
-//			response.setStatus("Failure");
-//			response.setMessage("Failed to create LinkedIn post: Network issues");
-//			response.setCode(HttpStatus.SERVICE_UNAVAILABLE.value());
-//			response.setPlatform("linkedin");
-//			response.setData(null);
-//		} else {
-//			response.setStatus("Failure");
-//			response.setMessage("Failed to create LinkedIn post: Unexpected error occurred");
-//			response.setCode(httpStatusCode.value());
-//			response.setPlatform("linkedin");
-//			response.setData(null);
-//		}
-//	}
-
-//	private void handleClientErrorResponse(ResponseStructure<String> response, HttpClientErrorException e) {
-//		if (e.getStatusCode() == HttpStatus.TOO_MANY_REQUESTS) {
-//			response.setStatus("Failure");
-//			response.setMessage("Failed to create LinkedIn post: Too Many Requests - " + e.getMessage());
-//			response.setCode(HttpStatus.TOO_MANY_REQUESTS.value());
-//			response.setPlatform("linkedin");
-//			response.setData(null);
-//		} else {
-//			e.printStackTrace();
-//			response.setStatus("Failure");
-//			response.setMessage(
-//					"Failed to create LinkedIn post: " + e.getStatusCode() + " - " + e.getResponseBodyAsString());
-//			response.setCode(e.getStatusCode().value());
-//			response.setPlatform("linkedin");
-//			response.setData(e);
-//		}
-//	}
-//
-//	private void handleServerErrorResponse(ResponseStructure<String> response, HttpServerErrorException e) {
-//		response.setStatus("Failure");
-//		response.setMessage("HTTP Server Error: " + e.getStatusCode());
-//		response.setCode(e.getStatusCode().value());
-//		response.setPlatform("linkedin");
-//		response.setData(null);
-//	}
-
-//	private void handlePostResponse(ResponseStructure<String> response, ResponseStructure<String> postResponse) {
-//		if (postResponse.getCode() == 201) {
-//			response.setStatus(postResponse.getStatus());
-//			response.setMessage(postResponse.getMessage());
-//			response.setCode(postResponse.getCode());
-//			response.setPlatform("linkedin");
-//			response.setData(postResponse.getData());
-//		} else if (postResponse.getCode() == 400) {
-//			response.setStatus("Failure");
-//			response.setMessage("Failed to create LinkedIn post: Caption is invalid");
-//			response.setCode(400);
-//			response.setPlatform("linkedin");
-//			response.setData(null);
-//		} else if (postResponse.getCode() == 401) {
-//			response.setStatus("Failure");
-//			response.setMessage("Failed to create LinkedIn post: Unauthorized access");
-//			response.setCode(401);
-//			response.setPlatform("linkedin");
-//			response.setData(null);
-//		} else if (postResponse.getCode() == 422) {
-//			response.setStatus("Failure");
-//			response.setMessage("Failed to create LinkedIn post: Media asset error");
-//			response.setCode(422);
-//			response.setPlatform("linkedin");
-//			response.setData(null);
-//		} else if (postResponse.getCode() == 429) {
-//			response.setStatus("Failure");
-//			response.setMessage("Failed to create LinkedIn post: Too Many Requests");
-//			response.setCode(429);
-//			response.setPlatform("linkedin");
-//			response.setData(null);
-//		} else if (postResponse.getCode() == 500) {
-//			response.setStatus("Failure");
-//			response.setMessage("Failed to create LinkedIn post: Internal server error");
-//			response.setCode(500);
-//			response.setPlatform("linkedin");
-//			response.setData(null);
-//		} else if (postResponse.getCode() == 503) {
-//			response.setStatus("Failure");
-//			response.setMessage("Failed to create LinkedIn post: Network issues");
-//			response.setCode(503);
-//			response.setPlatform("linkedin");
-//			response.setData(null);
-//		} else {
-//			// Handle other failure scenarios
-//			response.setStatus("Failure");
-//			response.setMessage("Failed to create LinkedIn post: Unexpected error occurred");
-//			response.setCode(postResponse.getCode());
-//			response.setPlatform("linkedin");
-//			response.setData(null);
-//		}
-//	}
-
-// SHARE IMAGE/VIDEO AND TEXT TO LINKEDIN PAGE/ORGANIZATION

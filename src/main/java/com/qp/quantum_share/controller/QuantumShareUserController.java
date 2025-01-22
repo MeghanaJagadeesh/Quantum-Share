@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,8 +18,12 @@ import org.springframework.web.multipart.MultipartFile;
 import com.qp.quantum_share.configuration.JwtUtilConfig;
 import com.qp.quantum_share.dao.QuantumShareUserDao;
 import com.qp.quantum_share.dto.QuantumShareUser;
+import com.qp.quantum_share.dto.Staff;
 import com.qp.quantum_share.helper.CommonMethod;
+import com.qp.quantum_share.helper.JwtToken;
+import com.qp.quantum_share.repository.StaffRepository;
 import com.qp.quantum_share.response.ResponseStructure;
+import com.qp.quantum_share.services.AdminService;
 import com.qp.quantum_share.services.QuantumShareUserService;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -40,12 +46,44 @@ public class QuantumShareUserController {
 
 	@Autowired
 	CommonMethod commonMethod;
+	
+	@Autowired
+	JwtToken jwtToken;
+	
+	@Autowired
+	StaffRepository staffRepository;
+	
+	@Autowired
+	AdminService adminService;
 
+	@Value("${quantumshare.admin.email}")
+	private String adminEmail;
+
+	@Value("${quantumshare.admin.password}")
+	private String adminPassword;
+	
 	@PostMapping("/login")
 	public ResponseEntity<ResponseStructure<String>> userLogin(@RequestParam String emph,
 			@RequestParam String password) {
-		System.out.println("login");
-		return quantumShareUserService.login(emph, password);
+		ResponseStructure<String> responseStructure = new ResponseStructure<>();
+
+	    if (adminEmail.equals(emph) && adminPassword.equals(password)) {
+	        String tokenValue = jwtToken.generateJWTForAdmin(); 
+	        responseStructure.setMessage("Admin login successful!");
+	        responseStructure.setStatus("success");
+	        responseStructure.setCode(122);
+	        responseStructure.setData(tokenValue);
+	        return ResponseEntity.ok(responseStructure);
+	    }
+	    try {
+	        return quantumShareUserService.login(emph, password); // Call user login service method
+	    } catch (RuntimeException e) {
+	        responseStructure.setMessage(e.getMessage());
+	        responseStructure.setStatus("error");
+	        responseStructure.setCode(HttpStatus.UNAUTHORIZED.value());
+	        responseStructure.setData(null);
+	        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(responseStructure);
+	    }
 	}
 
 	@PostMapping("/signup")
@@ -68,7 +106,6 @@ public class QuantumShareUserController {
 			@RequestParam String email) {
 		return quantumShareUserService.regeneratePassword(password, email);
 	}
-
 //	@GetMapping("/access/remainingdays")
 //	public ResponseEntity<PackageResponse> userRemainingDays(@RequestBody User user) {
 //		return quantumShareUserService.calculateRemainingPackageDays(user);
@@ -124,7 +161,7 @@ public class QuantumShareUserController {
 	public ResponseEntity<ResponseStructure<String>> AppForgetPassword(@RequestParam String email) {
 		return quantumShareUserService.AppForgetPassword(email);
 	}
-	
+
 	@GetMapping("/test/session")
 	public Map<String, Object> test() {
 		Map<String, Object> map = new HashMap<String, Object>();
@@ -139,7 +176,7 @@ public class QuantumShareUserController {
 		Object userId = commonMethod.validateToken(request.getHeader("Authorization"));
 		return quantumShareUserService.fetchConnectedPlatform(Integer.parseInt(userId.toString()));
 	}
-	
+
 	@GetMapping("/connected/socialmedia/facebook")
 	public ResponseEntity<ResponseStructure<String>> fetchConnectedFB() {
 		Object userId = commonMethod.validateToken(request.getHeader("Authorization"));
@@ -180,5 +217,11 @@ public class QuantumShareUserController {
 	public ResponseEntity<ResponseStructure<String>> fetchConnectedTwitter() {
 		Object userId = commonMethod.validateToken(request.getHeader("Authorization"));
 		return quantumShareUserService.fetchConnectedTwitter(Integer.parseInt(userId.toString()));
+	}
+	
+	@GetMapping("/connected/socialmedia/pinterest")
+	public ResponseEntity<ResponseStructure<String>> fetchConnectedPinterest() {
+		Object userId = commonMethod.validateToken(request.getHeader("Authorization"));
+		return quantumShareUserService.fetchConnectedPinterest(Integer.parseInt(userId.toString()));
 	}
 }

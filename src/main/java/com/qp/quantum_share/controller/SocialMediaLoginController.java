@@ -35,6 +35,7 @@ import com.qp.quantum_share.response.ResponseStructure;
 import com.qp.quantum_share.services.FacebookAccessTokenService;
 import com.qp.quantum_share.services.InstagramService;
 import com.qp.quantum_share.services.LinkedInProfileService;
+import com.qp.quantum_share.services.PinterestService;
 import com.qp.quantum_share.services.RedditService;
 import com.qp.quantum_share.services.TelegramService;
 import com.qp.quantum_share.services.TwitterService;
@@ -79,6 +80,9 @@ public class SocialMediaLoginController {
 	@Autowired
 	RedditService redditService;
 
+	@Autowired
+	PinterestService pinterestService;
+	
 	@Autowired
 	ObjectMapper mapper;
 
@@ -539,6 +543,50 @@ public class SocialMediaLoginController {
 		return ResponseEntity.status(responseStructure.getCode()).body(responseStructure);
 	}
 
+	
+	// Pinterest Connection
+	@GetMapping("/pinterest/user/connect")
+	public ResponseEntity<ResponseStructure<String>> connectPinterest() {
+		Object userId1 = commonMethod.validateToken(request.getHeader("Authorization"));
+		int userId = Integer.parseInt(userId1.toString());
+		QuantumShareUser user = userDao.fetchUser(userId);
+		if (user == null) {
+			ResponseStructure<String> structure = new ResponseStructure<String>();
+			structure.setCode(HttpStatus.NOT_FOUND.value());
+			structure.setMessage("User doesn't exists, Please Signup");
+			structure.setStatus("error");
+			structure.setData(null);
+			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
+		}
+		return pinterestService.getPinterestAuthorizationUrl(user);
+	}
+
+	@PostMapping("/pinterest/user/verify-token")
+	public ResponseEntity<ResponseStructure<String>> callbackPinterest(@RequestParam(required = false) String code) {
+		Object userId1 = commonMethod.validateToken(request.getHeader("Authorization"));
+		int userId = Integer.parseInt(userId1.toString());
+		QuantumShareUser user = userDao.fetchUser(userId);
+		if (user == null) {
+			ResponseStructure<String> structure = new ResponseStructure<String>();
+			structure.setCode(HttpStatus.NOT_FOUND.value());
+			structure.setMessage("User doesn't Exists, Please Signup");
+			structure.setStatus("error");
+			structure.setData(null);
+			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
+		}
+		if (code == null) {
+			ResponseStructure<String> structure = new ResponseStructure<String>();
+			structure.setCode(HttpStatus.BAD_REQUEST.value());
+			structure.setMessage("Please accept all the permission while login");
+			structure.setPlatform("pinterest");
+			structure.setStatus("error");
+			structure.setData(null);
+			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.BAD_REQUEST);
+		}
+		return pinterestService.pinterestVerifyToken(code, user, userId);
+	}
+
+	
 //	@PostMapping("/refresh-token")
 //	public ResponseEntity<ResponseStructure<Map<String, String>>> refreshToken() {
 //		ResponseStructure<Map<String, String>> responseStructure = new ResponseStructure<>();

@@ -46,4 +46,7 @@ public class SocialAccounts {
 	
 	@OneToOne(cascade = CascadeType.ALL)
 	private RedditDto redditDto; 
+	
+	@OneToOne(cascade = CascadeType.ALL)
+	private PinterestUser pinterestUser; 
 }

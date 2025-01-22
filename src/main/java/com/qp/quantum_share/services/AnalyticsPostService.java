@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -129,7 +130,6 @@ public class AnalyticsPostService {
 
 	public ResponseEntity<ResponseStructure<String>> getRecentPost(String postId, QuantumShareUser user) {
 		SocialMediaPosts post = postsDao.getPostByPostId(postId);
-//		System.out.println(post);
 		if (post == null) {
 			ResponseStructure<String> structure = new ResponseStructure<String>();
 			structure.setCode(HttpStatus.NOT_FOUND.value());
@@ -206,6 +206,7 @@ public class AnalyticsPostService {
 		}
 		headers.setBearerAuth(instagramUser.getInstUserAccessToken());
 		HttpEntity<String> entity = config.getHttpEntity(headers);
+		System.out.println("********************************************88");
 		ResponseEntity<JsonNode> response = restTemplate.exchange(
 				"https://graph.facebook.com/v20.0/" + postId + "?fields=media_url", HttpMethod.GET, entity,
 				JsonNode.class);
@@ -357,12 +358,12 @@ public class AnalyticsPostService {
 				insight.put("bookmarkCount", publicMetrics.path("bookmark_count").asInt());
 				insight.put("impressionCount", publicMetrics.path("impression_count").asInt());
 
-				 JsonNode mediaArray = responseBody.path("includes").path("media");
-		            if (mediaArray.isArray() && mediaArray.size() > 0) {
-		                JsonNode media = mediaArray.get(0);
-		                insight.put("viewCount", media.path("public_metrics").path("view_count").asInt());
-		            }
-		            
+				JsonNode mediaArray = responseBody.path("includes").path("media");
+				if (mediaArray.isArray() && mediaArray.size() > 0) {
+					JsonNode media = mediaArray.get(0);
+					insight.put("viewCount", media.path("public_metrics").path("view_count").asInt());
+				}
+
 				String text = responseBody.path("data").get(0).path("text").asText();
 
 				Pattern pattern = Pattern.compile("(.+?)\\s(https?://\\S+)$");
@@ -561,6 +562,7 @@ public class AnalyticsPostService {
 				structure.setData(null);
 				return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
 			}
+			System.out.println("likes url");
 			String likeUrl = "https://graph.facebook.com/v20.0/" + post.getProfileId() + "_" + post.getPostid()
 					+ "/insights?metric=post_reactions_by_type_total&access_token=" + page.getFbPageAceessToken();
 			String commentUrl = "https://graph.facebook.com/v20.0/" + post.getProfileId() + "_" + post.getPostid()
@@ -649,8 +651,15 @@ public class AnalyticsPostService {
 				structure.setData(null);
 				return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
 			}
-			String apiUrl = "https://graph.facebook.com/" + post.getPostid()
-					+ "/insights?metric=comments,likes,saved,shares,video_views,reach";
+			String contentType = post.getMediaType();
+			String apiUrl;
+			if (contentType.equals("image")) {
+				apiUrl = "https://graph.facebook.com/" + post.getPostid()
+						+ "/insights?metric=comments,likes,saved,shares,reach";
+			} else {
+				apiUrl = "https://graph.facebook.com/" + post.getPostid()
+						+ "/insights?metric=comments,likes,saved,shares,ig_reels_video_view_total_time,reach";
+			}
 			headers.setBearerAuth(instagramUser.getInstUserAccessToken());
 			HttpEntity<String> entity = config.getHttpEntity(headers);
 			ResponseEntity<JsonNode> response = restTemplate.exchange(apiUrl, HttpMethod.GET, entity, JsonNode.class);
@@ -714,100 +723,150 @@ public class AnalyticsPostService {
 		String accessToken = redditDto.getRedditAccessToken();
 		String url = "https://oauth.reddit.com/comments/" + post.getPostid();
 
-	    HttpHeaders headers = new HttpHeaders();
-	    headers.set("Authorization", "Bearer " + accessToken);
-	    headers.set("User-Agent", "web:NmIDntOHG8nO6qeCzU2wDw:v1.0.0(by /u/Quantum_1824)");
+		HttpHeaders headers = new HttpHeaders();
+		headers.set("Authorization", "Bearer " + accessToken);
+		headers.set("User-Agent", "web:NmIDntOHG8nO6qeCzU2wDw:v1.0.0(by /u/Quantum_1824)");
 
-	    HttpEntity<String> entity = new HttpEntity<>(headers);
+		HttpEntity<String> entity = new HttpEntity<>(headers);
 
-	    try {
-	        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+		try {
+			ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
 
-	        // Log response for debugging
-	        System.out.println("Response body: " + response.getBody());
+			// Log response for debugging
+			System.out.println("Response body: " + response.getBody());
 
-	        ObjectMapper objectMapper = new ObjectMapper();
-	        JsonNode rootNode = objectMapper.readTree(response.getBody());
+			ObjectMapper objectMapper = new ObjectMapper();
+			JsonNode rootNode = objectMapper.readTree(response.getBody());
 
-	        if (rootNode.isArray() && rootNode.size() >= 2) {
-	            JsonNode postDataNode = rootNode.get(0).path("data").path("children");
-	            JsonNode commentDataNode = rootNode.get(1).path("data").path("children");
+			if (rootNode.isArray() && rootNode.size() >= 2) {
+				JsonNode postDataNode = rootNode.get(0).path("data").path("children");
+				JsonNode commentDataNode = rootNode.get(1).path("data").path("children");
 
-	            // Initialize fallback/default values
-	            int numComments = 0, ups = 0, numCrossposts = 0;
-	            String subreddit = "", postUrl = "", title = "";
+				// Initialize fallback/default values
+				int numComments = 0, ups = 0, numCrossposts = 0;
+				String subreddit = "", postUrl = "", title = "";
 
-	            // Extract post data
-	            if (postDataNode.isArray() && postDataNode.size() > 0) {
-	                JsonNode postData = postDataNode.get(0).path("data");
-	                numComments = postData.path("num_comments").asInt(0);
-	                numCrossposts = postData.path("num_crossposts").asInt(0);
-	                subreddit = postData.path("subreddit").asText("");
-	                postUrl = postData.path("url").asText("");
-	                title = postData.path("title").asText();       // Extract title
-	               }
+				// Extract post data
+				if (postDataNode.isArray() && postDataNode.size() > 0) {
+					JsonNode postData = postDataNode.get(0).path("data");
+					numComments = postData.path("num_comments").asInt(0);
+					numCrossposts = postData.path("num_crossposts").asInt(0);
+					subreddit = postData.path("subreddit").asText("");
+					postUrl = postData.path("url").asText("");
+					title = postData.path("title").asText(); // Extract title
+				}
 
-	            // Extract comment data
-	            if (commentDataNode.isArray() && commentDataNode.size() > 0) {
-	                JsonNode commentData = commentDataNode.get(0).path("data");
-	                ups = commentData.path("ups").asInt(0);
-	            }
+				// Extract comment data
+				if (commentDataNode.isArray() && commentDataNode.size() > 0) {
+					JsonNode commentData = commentDataNode.get(0).path("data");
+					ups = commentData.path("ups").asInt(0);
+				}
 
-	            // Build response data
-	            Map<String, String> responseData = Map.of(
-	                "comments", String.valueOf(numComments),
-	                "likes", String.valueOf(ups),
-	                "shares", String.valueOf(numCrossposts),
-	                "subreddit_name", subreddit,
-	                "full_picture", postUrl,
-	                "description", title,                  // Include title
-	                "media_type", post.getMediaType()            // Include selftext
-	            );
+				// Build response data
+				Map<String, String> responseData = Map.of("comments", String.valueOf(numComments), "likes",
+						String.valueOf(ups), "shares", String.valueOf(numCrossposts), "subreddit_name", subreddit,
+						"full_picture", postUrl, "description", title, // Include title
+						"media_type", post.getMediaType() // Include selftext
+				);
 
-	            responseStructure.setMessage("Data fetched successfully");
-	            responseStructure.setStatus("success");
-	            responseStructure.setCode(HttpStatus.OK.value());
-	            responseStructure.setPlatform("Reddit");
-	            responseStructure.setData(responseData);
-	            return ResponseEntity.ok(responseStructure);
+				responseStructure.setMessage("Data fetched successfully");
+				responseStructure.setStatus("success");
+				responseStructure.setCode(HttpStatus.OK.value());
+				responseStructure.setPlatform("Reddit");
+				responseStructure.setData(responseData);
+				return ResponseEntity.ok(responseStructure);
 
-	        } else {
-	            responseStructure.setMessage("Invalid Reddit post data or missing comments");
-	            responseStructure.setStatus("error");
-	            responseStructure.setCode(HttpStatus.NOT_FOUND.value());
-	            responseStructure.setPlatform("Reddit");
-	            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(responseStructure);
-	        }
-	    } catch (Exception e) {
-	        e.printStackTrace();
-	        responseStructure.setMessage("Error fetching or processing Reddit data");
-	        responseStructure.setStatus("error");
-	        responseStructure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
-	        responseStructure.setPlatform("Reddit");
-	        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseStructure);
-	    }
+			} else {
+				responseStructure.setMessage("Invalid Reddit post data or missing comments");
+				responseStructure.setStatus("error");
+				responseStructure.setCode(HttpStatus.NOT_FOUND.value());
+				responseStructure.setPlatform("Reddit");
+				return ResponseEntity.status(HttpStatus.NOT_FOUND).body(responseStructure);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			responseStructure.setMessage("Error fetching or processing Reddit data");
+			responseStructure.setStatus("error");
+			responseStructure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			responseStructure.setPlatform("Reddit");
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseStructure);
+		}
 	}
-	
-	public ResponseEntity<ResponseStructure<String>> getCompleteAnakytics(QuantumShareUser user) {
-		ResponseStructure<String> structure=new ResponseStructure<String>();
-		List<SocialMediaPosts> posts = user.getPosts();
-		Map<Object, List<SocialMediaPosts>> groupedPosts = posts.stream()
-                .collect(Collectors.groupingBy(
-                        post -> LocalDate.ofInstant(post.getPostDate(), ZoneId.systemDefault())
-                ));
 
-        Map<Object, Integer> list=new HashMap<Object, Integer>();
-        groupedPosts.forEach((date, postList) -> {
-        	list.put(date, postList.size());
-            System.out.println("Date: " + date + " - Number of posts: " + postList.size());
-            postList.forEach(post -> System.out.println("  " + post));
-        });
-        
-        structure.setCode(HttpStatus.OK.value());
-        structure.setData(list);
-        structure.setMessage(null);
-        structure.setPlatform(null);
-        structure.setStatus("success");
-        return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
+//	public ResponseEntity<ResponseStructure<String>> getCompleteAnalytics(QuantumShareUser user) {
+//		ResponseStructure<String> structure=new ResponseStructure<String>();
+//		List<SocialMediaPosts> posts = user.getPosts();
+//		Map<Object, List<SocialMediaPosts>> groupedPosts = posts.stream()
+//                .collect(Collectors.groupingBy(
+//                        post -> LocalDate.ofInstant(post.getPostDate(), ZoneId.systemDefault())
+//                ));
+//
+//        Map<Object, Integer> list=new HashMap<Object, Integer>();
+//        groupedPosts.forEach((date, postList) -> {
+//        	list.put(date, postList.size());
+//            System.out.println("Date: " + date + " - Number of posts: " + postList.size());
+//            postList.forEach(post -> System.out.println("  " + post));
+//        });
+//        
+//        structure.setCode(HttpStatus.OK.value());
+//        structure.setData(list);
+//        structure.setMessage(null);
+//        structure.setPlatform(null);
+//        structure.setStatus("success");
+//        return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
+//	}
+
+	public ResponseEntity<ResponseStructure<Map<String, Map<String, Integer>>>> getCompleteAnalytics(
+			QuantumShareUser user) {
+		ResponseStructure<Map<String, Map<String, Integer>>> structure = new ResponseStructure<>();
+		List<SocialMediaPosts> posts = user.getPosts();
+		Map<LocalDate, List<SocialMediaPosts>> groupedPosts = posts.stream().collect(
+				Collectors.groupingBy(post -> LocalDate.ofInstant(post.getPostDate(), ZoneId.systemDefault())));
+
+		if (groupedPosts.isEmpty()) {
+			structure.setCode(HttpStatus.OK.value());
+			structure.setData(new HashMap<>());
+			structure.setMessage("No posts available");
+			structure.setPlatform(null);
+			structure.setStatus("success");
+			return new ResponseEntity<>(structure, HttpStatus.OK);
+		}
+
+		LocalDate earliestDate = Collections.min(groupedPosts.keySet());
+		LocalDate latestDate = Collections.max(groupedPosts.keySet());
+
+		Map<String, Integer> maxCounts = new HashMap<>();
+		Map<String, Integer> dailyCounts = new HashMap<>();
+
+		for (LocalDate date = earliestDate; !date.isAfter(latestDate); date = date.plusDays(1)) {
+			String dateString = date.toString();
+			dailyCounts.put(dateString, 0);
+		}
+
+		groupedPosts.forEach((date, postList) -> {
+			String dateString = date.toString();
+			int postCount = postList.size();
+
+			dailyCounts.put(dateString, postCount);
+
+			if (postCount > 0) {
+				maxCounts.put(dateString, postCount);
+			}
+
+			System.out.println("Date: " + date + " - Number of posts: " + postCount);
+			postList.forEach(post -> System.out.println("  " + post));
+		});
+
+		Map<String, Map<String, Integer>> responseData = new HashMap<>();
+		responseData.put("max", maxCounts);
+		responseData.put("daily", dailyCounts);
+
+		structure.setCode(HttpStatus.OK.value());
+		structure.setData(responseData);
+		structure.setMessage(null);
+		structure.setPlatform(null);
+		structure.setStatus("success");
+
+		return new ResponseEntity<>(structure, HttpStatus.OK);
 	}
 }

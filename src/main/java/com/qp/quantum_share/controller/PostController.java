@@ -36,11 +36,11 @@ import twitter4j.TwitterException;
 @RequestMapping("/quantum-share")
 public class PostController {
 
-	@Value("${quantumshare.admin.firstname}")
-	private String firstname;
-
-	@Value("${quantumshare.admin.email}")
-	private String email;
+//	@Value("${quantumshare.admin.firstname}")
+//	private String firstname;
+//
+//	@Value("${quantumshare.admin.email}")
+//	private String email;
 
 	@Autowired
 	ResponseStructure<String> structure;
@@ -88,9 +88,9 @@ public class PostController {
 			response.add(structure);
 			return new ResponseEntity<List<Object>>(response, HttpStatus.NOT_FOUND);
 		}
-		if (user.getFirstName().equals(firstname) && user.getEmail().equals(email)) {
-			return postServices.postOnFb(mediaPost, mediaFile, user, userId);
-		}
+//		if (user.getFirstName().equals(firstname) && user.getEmail().equals(email)) {
+//			return postServices.postOnFb(mediaPost, mediaFile, user, userId);
+//		}
 		Map<String, Object> resp = userTracking.isValidCredit(user);
 		if (!(boolean) resp.get("validcredit")) {
 			structure.setCode(114);
@@ -134,9 +134,9 @@ public class PostController {
 			return new ResponseEntity<ResponseWrapper>(configuration.getResponseWrapper(structure),
 					HttpStatus.NOT_FOUND);
 		}
-		if (user.getFirstName().equals(firstname) && user.getEmail().equals(email)) {
-			return postServices.postOnInsta(mediaPost, mediaFile, user, userId);
-		}
+//		if (user.getFirstName().equals(firstname) && user.getEmail().equals(email)) {
+//			return postServices.postOnInsta(mediaPost, mediaFile, user, userId);
+//		}
 		Map<String, Object> resp = userTracking.isValidCredit(user);
 		if (!(boolean) resp.get("validcredit")) {
 			structure.setCode(114);
@@ -183,9 +183,9 @@ public class PostController {
 					HttpStatus.NOT_FOUND);
 		}
 
-		if (user.getFirstName().equals(firstname) && user.getEmail().equals(email)) {
-			return postServices.postOnTelegram(mediaPost, mediaFile, user, userId);
-		}
+//		if (user.getFirstName().equals(firstname) && user.getEmail().equals(email)) {
+//			return postServices.postOnTelegram(mediaPost, mediaFile, user, userId);
+//		}
 		Map<String, Object> resp = userTracking.isValidCredit(user);
 		if (!(boolean) resp.get("validcredit")) {
 			structure.setCode(114);
@@ -378,6 +378,42 @@ public class PostController {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(responseStructure);
 		}
 		return postServices.PostOnReddit(subreddit, user.getSocialAccounts(), mediaPost, mediaFile,user);
+	}
+
+	// Pinterest
+	@PostMapping("/post/file/pinterest")
+	public ResponseEntity<ResponseWrapper> postToPinterest(MultipartFile mediaFile,
+			@ModelAttribute MediaPost mediaPost) {
+		System.out.println("***Coming to Post method***");
+		Object userId1 = commonMethod.validateToken(request.getHeader("Authorization"));
+		int userId = Integer.parseInt(userId1.toString());
+		QuantumShareUser user = userDao.fetchUser(userId);
+		if (user == null) {
+			structure.setCode(HttpStatus.NOT_FOUND.value());
+			structure.setMessage("User doesn't Exists, Please Signup");
+			structure.setStatus("error");
+			structure.setData(null);
+			structure.setPlatform("pinterest");
+			return new ResponseEntity<ResponseWrapper>(configuration.getResponseWrapper(structure),
+					HttpStatus.NOT_FOUND);
+		}
+		try {
+			if (mediaPost.getMediaPlatform() == null || mediaPost.getMediaPlatform() == "") {
+				structure.setCode(HttpStatus.BAD_REQUEST.value());
+				structure.setStatus("error");
+				structure.setMessage("Select Social Media Platforms");
+				structure.setData(null);
+				structure.setPlatform("pinterest");
+				return new ResponseEntity<ResponseWrapper>(configuration.getResponseWrapper(structure),
+						HttpStatus.BAD_REQUEST);
+			} else {
+				return postServices.postOnPinterest(mediaPost, mediaFile, user.getSocialAccounts(), userId);
+			}
+		} catch (NullPointerException e) {
+			throw new NullPointerException(e.getMessage());
+		} catch (IllegalArgumentException e) {
+			throw new CommonException(e.getMessage());
+		}
 	}
 
 }

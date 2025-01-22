@@ -25,6 +25,7 @@ import com.qp.quantum_share.dto.FacebookPageDetails;
 import com.qp.quantum_share.dto.InstagramUser;
 import com.qp.quantum_share.dto.LinkedInPageDto;
 import com.qp.quantum_share.dto.LinkedInProfileDto;
+import com.qp.quantum_share.dto.PinterestUser;
 import com.qp.quantum_share.dto.QuantumShareUser;
 import com.qp.quantum_share.dto.RedditDto;
 import com.qp.quantum_share.dto.SocialAccounts;
@@ -92,6 +93,9 @@ public class QuantumShareUserService {
 	@Autowired
 	TwitterService twitterService;
 
+	@Autowired
+	AdminService adminService;
+
 	public ResponseEntity<ResponseStructure<String>> login(String emph, String password) {
 		ResponseStructure<String> structure = new ResponseStructure<String>();
 		long mobile = 1;
@@ -102,6 +106,10 @@ public class QuantumShareUserService {
 			System.out.println("catch");
 			email = emph;
 		}
+		if (adminService.isStaff(email)) {
+			return adminService.staffLogin(emph, password);
+		}
+
 		QuantumShareUser users = userDao.findByEmail(email);
 		System.out.println(users);
 		if (users == null) {
@@ -121,7 +129,6 @@ public class QuantumShareUserService {
 				structure.setData(user.getEmail());
 				structure.setPlatform(null);
 				return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
-
 			}
 			System.out.println(password + "  " + SecurePassword.decrypt(user.getPassword(), "123"));
 			if (SecurePassword.decrypt(user.getPassword(), "123").equals(password)) {
@@ -526,7 +533,7 @@ public class QuantumShareUserService {
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
 		}
 		boolean creditApplied = userTracking.applyCredit(user);
-		if(!creditApplied) {
+		if (!creditApplied) {
 			System.out.println("false");
 			structure.setCode(HttpStatus.NOT_ACCEPTABLE.value());
 			structure.setMessage("Your package has expired. Please Upgrade your package");
@@ -1109,4 +1116,57 @@ public class QuantumShareUserService {
 		return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
 
 	}
+
+	public ResponseEntity<ResponseStructure<String>> fetchConnectedPinterest(int userId) {
+		ResponseStructure<String> structure = new ResponseStructure<String>();
+		QuantumShareUser user = userDao.fetchUser(userId);
+		if (user == null) {
+			structure.setCode(HttpStatus.NOT_FOUND.value());
+			structure.setPlatform(null);
+			structure.setMessage("user doesn't exists, please login");
+			structure.setStatus("error");
+			structure.setData(null);
+			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
+		}
+		SocialAccounts accounts = user.getSocialAccounts();
+		if (accounts == null || accounts.getPinterestUser() == null) {
+			System.out.println("pinterest before structure" + structure);
+			structure.setCode(119);
+			structure.setMessage("user has not connected pinterest");
+			structure.setPlatform("pinterest");
+			structure.setStatus("error");
+			structure.setData(null);
+			System.out.println("pinterest after structure" + structure);
+			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
+		}
+		PinterestUser pinterestUser = accounts.getPinterestUser();
+		Map<String, Object> data = configure.getMap();
+		data.clear();
+		if (pinterestUser != null) {
+			Map<String, Object> pinterest = configure.getMap();
+			String pinterestUrl;
+			if (pinterestUser.getPinterestProfileImage() == null) {
+				pinterestUrl = defaultProfile;
+			} else {
+				pinterestUrl = pinterestUser.getPinterestProfileImage();
+			}
+			pinterest.clear();
+			pinterest.put("pinterestProfileImage", pinterestUrl);
+			pinterest.put("pinterestProfileName", pinterestUser.getPinterestProfileName());
+			pinterest.put("pinterestBoardDetails", pinterestUser.getPinterestBoardDetails());
+			pinterest.put("pinterestFollowersCount", pinterestUser.getPinterestFollowersCount());
+			pinterest.put("user_id", userId);
+			data.put("pinterest", pinterest);
+		}
+
+		System.out.println("pinterest before connect" + structure);
+		structure.setData(data);
+		structure.setCode(HttpStatus.OK.value());
+		structure.setMessage(null);
+		structure.setStatus("success");
+		structure.setPlatform("pinterest");
+		System.out.println("pinterest after connected" + structure);
+		return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
+	}
+
 }

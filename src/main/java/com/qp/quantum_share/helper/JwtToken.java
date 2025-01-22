@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.qp.quantum_share.dto.QuantumShareUser;
+import com.qp.quantum_share.dto.Staff;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -18,6 +19,9 @@ public class JwtToken {
 
 	@Value("${jwt.secret}")
 	private String secretKey;
+	
+	@Value("${quantumshare.admin.email}") 
+	private String adminEmail;
 
 	@SuppressWarnings("deprecation")
 	public String generateJWT(QuantumShareUser user) {
@@ -37,4 +41,38 @@ public class JwtToken {
 		return Jwts.builder().setClaims(claims).setExpiration(expirationDate)
 				.signWith(SignatureAlgorithm.HS256, secretKey).compact();
 	}
+	
+	 @SuppressWarnings("deprecation")
+		public String generateJWT(Staff staff) {
+		        Map<String, Object> claims = new HashMap<>();
+		        claims.put("staffId", staff.getStaffId()); 
+		        claims.put("email", staff.getEmail());
+		        claims.put("role", "staff");
+		        
+		        Calendar calendar = Calendar.getInstance();
+		        calendar.add(Calendar.DAY_OF_YEAR, 15); 
+		        Date expirationDate = calendar.getTime();
+		        
+		        return Jwts.builder()
+		                .setClaims(claims)
+		                .setExpiration(expirationDate)
+		                .signWith(SignatureAlgorithm.HS256, secretKey)
+		                .compact();
+		    }
+		  
+		  @SuppressWarnings("deprecation")
+		public String generateJWTForAdmin() {
+			    Map<String, Object> claims = new HashMap<>();
+			    claims.put("email", adminEmail); 
+
+			    Calendar calendar = Calendar.getInstance();
+			    calendar.add(Calendar.DAY_OF_YEAR, 15); 
+			    Date expirationDate = calendar.getTime();
+
+			    return Jwts.builder()
+			            .setClaims(claims)
+			            .setExpiration(expirationDate)
+			            .signWith(SignatureAlgorithm.HS256, secretKey)
+			            .compact();
+			}
 }
