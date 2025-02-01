@@ -261,8 +261,8 @@ public class YoutubeService {
 		
 		YoutubeUser youtubeUser =account.getYoutubeUser();
 		ResponseStructure<Map<String, String>> responseStructure = new ResponseStructure<>();
-		System.out.println("Checking");
-		if (youtubeUser == null) {
+		
+	if (youtubeUser == null) {
 			responseStructure.setMessage("No YouTube user connected");
 			responseStructure.setStatus("error");
 			responseStructure.setData(Collections.singletonMap("status", "failure"));
@@ -278,7 +278,6 @@ public class YoutubeService {
 
 		// Check if token is expired or about to expire within the next 5 minutes
 		if (now.isAfter(expiryTime.minus(Duration.ofMinutes(5)))) {
-			System.out.println("Refresh Token");
 			try {
 				// Refresh token logic
 				MultiValueMap<String, String> requestMap = new LinkedMultiValueMap<>();
@@ -380,7 +379,6 @@ public class YoutubeService {
 
 	public ResponseEntity<ResponseWrapper> sendVideoToChannel(String youtubeChannelId, MultipartFile mediaFile,
 			String title, String caption, int userId, String visibility) throws IOException {
-		System.out.println(mediaFile.getContentType() + " " + mediaFile.getOriginalFilename());
 		String uploadUrl = "https://www.googleapis.com/upload/youtube/v3/videos?part=snippet,status";
 
 		headers.setContentType(MediaType.MULTIPART_FORM_DATA);

@@ -206,7 +206,6 @@ public class PostService {
 				structure.setData(null);
 				return new ResponseEntity<ResponseWrapper>(config.getResponseWrapper(structure), HttpStatus.NOT_FOUND);
 			}
-			System.out.println(3);
 			LinkedInProfileDto linkedInProfileUser = user.getSocialAccounts().getLinkedInProfileDto();
 			ResponseStructure<String> response;
 
@@ -214,18 +213,13 @@ public class PostService {
 					&& !mediaPost.getCaption().isEmpty()) {
 				response = linkedInProfilePostService.uploadImageToLinkedIn(mediaFile, mediaPost.getCaption(),
 						linkedInProfileUser, userId);
-				System.out.println("uploadImageToLinkedIn : " + response);
-			} else if (mediaPost.getCaption() != null && !mediaPost.getCaption().isEmpty()) {
-				System.out.println("2");
+				} else if (mediaPost.getCaption() != null && !mediaPost.getCaption().isEmpty()) {
 				response = linkedInProfilePostService.createPostProfile(mediaPost.getCaption(), linkedInProfileUser,
 						userId);
 
-				System.err.println("createPostProfile : " + response);
-			} else if (mediaFile != null && !mediaFile.isEmpty()) {
-				System.out.println("3");
+				} else if (mediaFile != null && !mediaFile.isEmpty()) {
 				response = linkedInProfilePostService.uploadImageToLinkedIn(mediaFile, "", linkedInProfileUser, userId);
-				System.out.println("uploadImageToLinkedIn : " + response);
-			} else {
+				} else {
 				ResponseStructure<String> structure = new ResponseStructure<String>();
 				structure.setStatus("Failure");
 				structure.setMessage("Please connect your LinkedIn account");
@@ -260,7 +254,6 @@ public class PostService {
 		System.err.println(user.getSocialAccounts().getLinkedInPages());
 		if (mediaPost.getMediaPlatform().contains("LinkedIn")) {
 			if (user == null || user.getSocialAccounts().getLinkedInPages() == null) {
-				System.out.println("error........");
 				ResponseStructure<String> structure = new ResponseStructure<String>();
 				structure.setMessage("Please connect your LinkedIn account");
 				structure.setCode(HttpStatus.NOT_FOUND.value());
@@ -288,7 +281,6 @@ public class PostService {
 			QuantumShareUser user, int userId) {
 		SocialAccounts accounts = user.getSocialAccounts();
 		if (!accounts.isLinkedInPagePresent()) {
-			System.out.println(2 + " profile");
 			return postOnLinkedIn(mediaPost, mediaFile, user, userId);
 		} else if (accounts.isLinkedInPagePresent()) {
 			return postOnLinkedInPage(mediaPost, mediaFile, user, userId);

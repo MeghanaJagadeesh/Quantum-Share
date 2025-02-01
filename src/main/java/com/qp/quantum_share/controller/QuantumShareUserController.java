@@ -18,7 +18,6 @@ import org.springframework.web.multipart.MultipartFile;
 import com.qp.quantum_share.configuration.JwtUtilConfig;
 import com.qp.quantum_share.dao.QuantumShareUserDao;
 import com.qp.quantum_share.dto.QuantumShareUser;
-import com.qp.quantum_share.dto.Staff;
 import com.qp.quantum_share.helper.CommonMethod;
 import com.qp.quantum_share.helper.JwtToken;
 import com.qp.quantum_share.repository.StaffRepository;
@@ -123,9 +122,7 @@ public class QuantumShareUserController {
 
 	@GetMapping("/account-overview")
 	public ResponseEntity<ResponseStructure<String>> accountOverView() {
-		System.out.println("controller");
 		Object userId = commonMethod.validateToken(request.getHeader("Authorization"));
-		System.out.println(userId);
 		return quantumShareUserService.accountOverView(Integer.parseInt(userId.toString()));
 
 	}

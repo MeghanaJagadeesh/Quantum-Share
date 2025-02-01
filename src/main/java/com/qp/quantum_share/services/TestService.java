@@ -33,11 +33,7 @@ public class TestService {
 
 				ResponseEntity<String> response = restTemplate.postForEntity(API_URL, request, String.class);
 
-				if (response.getStatusCode() == HttpStatus.OK) {
-					System.out.println("Message sent successfully to: " + phone);
-				} else {
-					System.err.println("Failed to send message to: " + phone + " - " + response.getBody());
-				}
+				
 			} catch (Exception e) {
 				System.err.println("Error sending message to: " + phone + " - " + e.getMessage());
 			}

@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -157,7 +156,6 @@ public class PostController {
 				return new ResponseEntity<ResponseWrapper>(configuration.getResponseWrapper(structure),
 						HttpStatus.BAD_REQUEST);
 			} else {
-				System.out.println("post on insta");
 				return postServices.postOnInsta(mediaPost, mediaFile, user, userId);
 			}
 		} catch (NullPointerException e) {
@@ -289,7 +287,6 @@ public class PostController {
 				return new ResponseEntity<ResponseWrapper>(configuration.getResponseWrapper(structure),
 						HttpStatus.BAD_REQUEST);
 			} else {
-				System.out.println(1);
 				return postServices.prePostOnLinkedIn(mediaPost, mediaFile, user, userId);
 			}
 		} catch (NullPointerException e) {
@@ -384,7 +381,6 @@ public class PostController {
 	@PostMapping("/post/file/pinterest")
 	public ResponseEntity<ResponseWrapper> postToPinterest(MultipartFile mediaFile,
 			@ModelAttribute MediaPost mediaPost) {
-		System.out.println("***Coming to Post method***");
 		Object userId1 = commonMethod.validateToken(request.getHeader("Authorization"));
 		int userId = Integer.parseInt(userId1.toString());
 		QuantumShareUser user = userDao.fetchUser(userId);

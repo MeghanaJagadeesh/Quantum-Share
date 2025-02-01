@@ -34,6 +34,8 @@ import com.qp.quantum_share.dao.PostsDao;
 import com.qp.quantum_share.dao.QuantumShareUserDao;
 import com.qp.quantum_share.dto.FacebookPageDetails;
 import com.qp.quantum_share.dto.InstagramUser;
+import com.qp.quantum_share.dto.LinkedInPageDto;
+import com.qp.quantum_share.dto.LinkedInProfileDto;
 import com.qp.quantum_share.dto.QuantumShareUser;
 import com.qp.quantum_share.dto.RedditDto;
 import com.qp.quantum_share.dto.SocialMediaPosts;
@@ -206,7 +208,6 @@ public class AnalyticsPostService {
 		}
 		headers.setBearerAuth(instagramUser.getInstUserAccessToken());
 		HttpEntity<String> entity = config.getHttpEntity(headers);
-		System.out.println("********************************************88");
 		ResponseEntity<JsonNode> response = restTemplate.exchange(
 				"https://graph.facebook.com/v20.0/" + postId + "?fields=media_url", HttpMethod.GET, entity,
 				JsonNode.class);
@@ -257,8 +258,6 @@ public class AnalyticsPostService {
 			structure.setStatus("success");
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
 		} catch (HttpClientErrorException e) {
-			System.out.println(e.getMessage());
-			System.out.println(e.toString());
 			try {
 				Thread.sleep(50000);
 				return fetchFacebookRecentPost(post, user, postId);
@@ -317,11 +316,75 @@ public class AnalyticsPostService {
 				return twitterAnalytics(user, pid);
 			} else if (post.getPlatformName().equals("reddit")) {
 				return redditAnalytics(user, pid);
+			} else if (post.getPlatformName().equals("linkedinPage")) {
+				return LinkedInAnalytics(user, pid);
 			}
 			return null;
 		} catch (JsonMappingException e) {
 			throw new CommonException(e.getMessage());
 		} catch (JsonProcessingException e) {
+			throw new CommonException(e.getMessage());
+		}
+	}
+
+	private ResponseEntity<ResponseStructure<String>> LinkedInAnalytics(QuantumShareUser user, String pid) {
+		SocialMediaPosts post = postsDao.getPost(Integer.parseInt(pid));
+		if (user.getSocialAccounts().isLinkedInPagePresent()) {
+			LinkedInPageDto linkedInPage = user.getSocialAccounts().getLinkedInPages();
+
+			return getLinkedPagePostAnalytics(linkedInPage.getLinkedinPageAccessToken(), user, post);
+		} else {
+			LinkedInProfileDto profile = user.getSocialAccounts().getLinkedInProfileDto();
+			return getLinkedPagePostAnalytics(profile.getLinkedinProfileAccessToken(), user, post);
+		}
+
+	}
+
+	private ResponseEntity<ResponseStructure<String>> getLinkedPagePostAnalytics(String access_token,
+			QuantumShareUser user, SocialMediaPosts post) {
+		try {
+			Map<String, Object> insight = config.getMap();
+			String apiUrl = "https://api.linkedin.com/rest/socialMetadata/";
+			HttpHeaders headers = new HttpHeaders();
+			headers.setBearerAuth(access_token);
+			headers.set("Linkedin-Version", "202411");
+
+			HttpEntity<String> requestEntity = config.getHttpEntity(headers);
+			ResponseEntity<JsonNode> response = restTemplate.exchange(apiUrl + post.getPostid(), HttpMethod.GET,
+					requestEntity, JsonNode.class);
+			if (response.getStatusCode().is2xxSuccessful()) {
+				JsonNode body = response.getBody();
+				JsonNode reactionSummaries = body.path("reactionSummaries");
+				JsonNode commentSummary = body.path("commentSummary");
+
+				reactionSummaries.fields().forEachRemaining(entry -> {
+					String reactionType = entry.getKey();
+					int count = entry.getValue().path("count").asInt();
+					insight.put(reactionType, count);
+				});
+				insight.put("comments", commentSummary.path("count").asInt());
+			}
+			if (post.getMediaType().equals("video")) {
+				String viewUrl = "https://api.linkedin.com/rest/videoAnalytics?q=entity&entity=" + post.getPostid()
+						+ "&type=VIDEO_VIEW&aggregation=ALL";
+				ResponseEntity<JsonNode> response3 = restTemplate.exchange(viewUrl, HttpMethod.GET, requestEntity,
+						JsonNode.class);
+				if (response3.getStatusCode().is2xxSuccessful()) {
+					JsonNode data = response3.getBody().path("elements");
+					if (data != null && data.isArray() && data.size() > 0) {
+						insight.put("views", data.get(0).path("value").asInt());
+					}
+				}
+			}
+			ResponseStructure<String> structure = new ResponseStructure<>();
+			structure.setCode(HttpStatus.OK.value());
+			structure.setData(insight);
+			structure.setMessage("LinkedIn Post analytics");
+			structure.setPlatform("linkedin");
+			structure.setStatus("success");
+			return new ResponseEntity<>(structure, HttpStatus.OK);
+		} catch (Exception e) {
+			e.printStackTrace();
 			throw new CommonException(e.getMessage());
 		}
 	}
@@ -341,13 +404,11 @@ public class AnalyticsPostService {
 			}
 			String apiUrl = "https://api.twitter.com/2/tweets?ids=" + post.getPostid()
 					+ "&tweet.fields=public_metrics&expansions=attachments.media_keys&media.fields=public_metrics";
-			System.out.println(apiUrl);
 			HttpHeaders headers = new HttpHeaders();
 			headers.setBearerAuth(twitterUser.getAccess_token());
 			HttpEntity<String> requestEntiry = config.getHttpEntity(headers);
 			ResponseEntity<JsonNode> response = restTemplate.exchange(apiUrl, HttpMethod.GET, requestEntiry,
 					JsonNode.class);
-			System.out.println(response.getBody());
 			JsonNode responseBody = response.getBody();
 			Map<String, Object> insight = config.getMap();
 			if (response.getStatusCode().is2xxSuccessful()) {
@@ -562,7 +623,6 @@ public class AnalyticsPostService {
 				structure.setData(null);
 				return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
 			}
-			System.out.println("likes url");
 			String likeUrl = "https://graph.facebook.com/v20.0/" + post.getProfileId() + "_" + post.getPostid()
 					+ "/insights?metric=post_reactions_by_type_total&access_token=" + page.getFbPageAceessToken();
 			String commentUrl = "https://graph.facebook.com/v20.0/" + post.getProfileId() + "_" + post.getPostid()
@@ -609,8 +669,6 @@ public class AnalyticsPostService {
 			String errorMessage = e.getResponseBodyAsString();
 			JsonNode json = objectMapper.readTree(errorMessage);
 			String mesg = json.get("error").get("message").asText();
-			System.out.println("mesg  " + mesg);
-			System.out.println(post.getPostid());
 			if (mesg.contains("Unsupported get request. Object with ID")) {
 				user.getPosts().remove(post);
 				userDao.save(user);
@@ -624,8 +682,6 @@ public class AnalyticsPostService {
 				structure.setData(null);
 				return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
 			} else {
-				System.out.println(e.getResponseBodyAsString());
-				System.out.println(e.getClass() + " : " + e.getStatusText());
 				e.printStackTrace();
 				throw new CommonException(e.getMessage());
 			}
@@ -731,9 +787,6 @@ public class AnalyticsPostService {
 
 		try {
 			ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
-
-			// Log response for debugging
-			System.out.println("Response body: " + response.getBody());
 
 			ObjectMapper objectMapper = new ObjectMapper();
 			JsonNode rootNode = objectMapper.readTree(response.getBody());
@@ -853,8 +906,7 @@ public class AnalyticsPostService {
 				maxCounts.put(dateString, postCount);
 			}
 
-			System.out.println("Date: " + date + " - Number of posts: " + postCount);
-			postList.forEach(post -> System.out.println("  " + post));
+			
 		});
 
 		Map<String, Map<String, Integer>> responseData = new HashMap<>();

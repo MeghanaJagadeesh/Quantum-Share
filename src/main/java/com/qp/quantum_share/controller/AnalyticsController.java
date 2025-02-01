@@ -84,12 +84,12 @@ public class AnalyticsController {
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.BAD_REQUEST);
 		}
 		QuantumShareUser user = userDao.fetchUser(Integer.parseInt(userId.toString()));
+		System.err.println(1);
 		return analyticsPostService.viewAnalytics(user, pid);
 	}
 
 	@GetMapping("/get/graph/data")
 	public ResponseEntity<ResponseStructure<Map<String, Map<String, Integer>>>> getCompleteAnalytics() {
-		System.out.println("controller");
 		ResponseStructure<Map<String, Map<String, Integer>>> structure = new ResponseStructure<>();
 		Object userId = commonMethod.validateToken(request.getHeader("Authorization"));
 		QuantumShareUser user = userDao.fetchUser(Integer.parseInt(userId.toString()));

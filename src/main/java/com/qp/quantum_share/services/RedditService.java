@@ -490,10 +490,7 @@ public class RedditService {
 	// REDDIT LINK POSTING
 		public ResponseStructure<JsonNode> PostOnReddit(String subreddit, String title, QuantumShareUser user, MultipartFile mediafile,
 		        RedditDto redditUser) {
-		    System.out.println("post on Reddit");
 		    String fileUrl = postOnServer.uploadFile(mediafile, "posts/");
-
-		    System.out.println(fileUrl);
 
 		    String endpoint = "https://oauth.reddit.com/api/submit";
 		    String accessToken = redditUser.getRedditAccessToken();

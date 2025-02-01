@@ -48,25 +48,19 @@ public class LinkedInProfilePostService {
 	public ResponseStructure<String> uploadImageToLinkedIn(MultipartFile mediaFile, String caption,
 			LinkedInProfileDto linkedInProfileUser, int userId) {
 		ResponseStructure<String> response = new ResponseStructure<String>();
-		System.out.println(5);
 		String profileURN = linkedInProfileUser.getLinkedinProfileURN();
 		String accessToken = linkedInProfileUser.getLinkedinProfileAccessToken();
 		try {
 			String recipeType = determineRecipeType(mediaFile);
 			String mediaType = determineMediaType(mediaFile);
 			// step 1
-			System.out.println(6 + "stage 1");
 			JsonNode uploadResponse = registerUpload(recipeType, accessToken, profileURN);
-			System.out.println(" stage 1 response " + response);
-
+			
 			String uploadUrl = uploadResponse.get("value").get("uploadMechanism")
 					.get("com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest").get("uploadUrl").asText();
 			String mediaAsset = uploadResponse.get("value").get("asset").asText();
-			System.out.println("media asset " + mediaAsset);
 			// step 2
-			System.out.println(8 + " stage 2");
 			if (uploadImage(uploadUrl, mediaFile, accessToken, userId)) {
-				System.out.println(9 + " stage 3");
 				// step 3
 				return createLinkedInPost(mediaAsset, caption, mediaType, accessToken, profileURN, userId);
 			} else {
@@ -105,26 +99,19 @@ public class LinkedInProfilePostService {
 			HttpHeaders headers = new HttpHeaders();
 			headers.setContentType(MediaType.APPLICATION_JSON);
 			headers.set("Authorization", "Bearer " + accessToken);
-			System.out.println("recipes : " + recipeType);
-			System.out.println("urn:li:person:" + profileURN);
-
 			String requestBody = "{\"registerUploadRequest\": {\"recipes\": [\"" + recipeType
 					+ "\"],\"owner\": \"urn:li:person:" + profileURN
 					+ "\",\"serviceRelationships\": [{\"relationshipType\": \"OWNER\",\"identifier\": \"urn:li:userGeneratedContent\"}]}}";
-			System.out.println(requestBody);
 			HttpEntity<String> requestEntity = config.getHttpEntity(requestBody, headers);
-			System.out.println("4");
 			ResponseEntity<JsonNode> responseEntity = restTemplate.exchange(
 					"https://api.linkedin.com/v2/assets?action=registerUpload", HttpMethod.POST, requestEntity,
 					JsonNode.class);
-			System.out.println("5");
-			System.out.println("bb " + responseEntity.getBody());
 			if (responseEntity.getStatusCode() == HttpStatus.OK) {
 				return responseEntity.getBody();
 			}
 		} catch (Exception e) {
-			System.err.println(e.getMessage());
 			e.printStackTrace();
+			throw new CommonException(e.getMessage());
 		}
 		return null;
 	}
@@ -186,8 +173,6 @@ public class LinkedInProfilePostService {
 					HttpMethod.POST, requestEntity, String.class);
 
 			if (responseEntity.getStatusCode() == HttpStatus.CREATED) {
-				System.out.println("*****");
-				System.out.println(responseEntity.getBody());
 				QuantumShareUser user = userDao.fetchUser(userId);
 				CreditSystem credits = user.getCreditSystem();
 				credits.setRemainingCredit(credits.getRemainingCredit() - 1);
@@ -322,8 +307,6 @@ public class LinkedInProfilePostService {
 					HttpMethod.POST, requestEntity, JsonNode.class);
 
 			if (responseEntity.getStatusCode() == HttpStatus.CREATED) {
-				System.out.println("***");
-				System.out.println(requestEntity.getBody());
 				QuantumShareUser user = userDao.fetchUser(userId);
 				CreditSystem credits = user.getCreditSystem();
 				credits.setRemainingCredit(credits.getRemainingCredit() - 1);
@@ -351,9 +334,7 @@ public class LinkedInProfilePostService {
 
 	private void saveLinkedInPost(String postId, String pageURN, QuantumShareUser user, String type, String profileType,
 			String pageName, String accessToken, long size) {
-		System.out.println("post id " + postId);
 		if (type.equals("video")) {
-			System.out.println("It is a video. Holding for a while...");
 			try {
 				if (size < 20 * 1024 * 1024) {
 					Thread.sleep(9000);
@@ -363,10 +344,8 @@ public class LinkedInProfilePostService {
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-			System.out.println("Video processing resumed.");
-		}
+			}
 		try {
-			System.out.println("savemet");
 			HttpHeaders headers = new HttpHeaders();
 			headers.setBearerAuth(accessToken);
 			headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
@@ -376,12 +355,10 @@ public class LinkedInProfilePostService {
 			ResponseEntity<JsonNode> response = restTemplate.exchange(url + postId, HttpMethod.GET, requestEntity,
 					JsonNode.class);
 			JsonNode body = response.getBody();
-			System.out.println("response 1 " + response.getBody());
 			String mediaId = null;
 			if (response.getStatusCode().is2xxSuccessful()) {
 				mediaId = body.path("content").path("media").path("id").asText();
-				System.out.println("media id " + mediaId);
-			}
+				}
 			String postUrl = null;
 			String apiUrl = "https://api.linkedin.com/rest/";
 			if (mediaId.startsWith("urn:li:image")) {
@@ -393,7 +370,6 @@ public class LinkedInProfilePostService {
 			ResponseEntity<JsonNode> response1 = restTemplate.exchange(apiUrl, HttpMethod.GET, requestEntity,
 					JsonNode.class);
 			JsonNode body2 = response1.getBody();
-			System.out.println("response 2 " + body2);
 			if (response.getStatusCode().is2xxSuccessful()) {
 				postUrl = body2.get("downloadUrl").asText();
 			}

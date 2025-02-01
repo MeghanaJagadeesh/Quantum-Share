@@ -110,38 +110,12 @@
 			<artifactId>twitter4j-core</artifactId>
 			<version>4.1.2</version>
 		</dependency>
-<!--
+		<!--
 		<dependency>
-			<groupId>org.bytedeco</groupId>
-			<artifactId>javacv-platform</artifactId>
-			<version>1.5.6</version>
-		</dependency>
-
-		 TwelveMonkeys ImageIO Core 
-		<dependency>
-			<groupId>com.twelvemonkeys.imageio</groupId>
-			<artifactId>imageio-core</artifactId>
-			<version>3.8.0</version>  Use the latest version 
-		</dependency>
-		 TIFF support 
-		<dependency>
-			<groupId>com.twelvemonkeys.imageio</groupId>
-			<artifactId>imageio-tiff</artifactId>
-			<version>3.8.0</version>
-		</dependency>
-		 WEBP support 
-		<dependency>
-			<groupId>com.twelvemonkeys.imageio</groupId>
-			<artifactId>imageio-webp</artifactId>
-			<version>3.8.0</version>
-		</dependency>
-
-		<dependency>
-			<groupId>com.twelvemonkeys.imageio</groupId>
-			<artifactId>imageio-batik</artifactId>
-			<version>3.12.0</version>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+			<version>2.8.4</version>
 		</dependency>-->
-
 	</dependencies>
 
 	<build>

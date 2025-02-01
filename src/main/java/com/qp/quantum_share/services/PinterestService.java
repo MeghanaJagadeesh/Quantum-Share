@@ -132,7 +132,6 @@ public class PinterestService {
 					String accessToken = responseBody.get("access_token").asText();
 					String refreshToken = responseBody.get("refresh_token").asText();
 					String pinterestUserDetails = fetchProfileDetails(accessToken);
-					System.out.println("Pinterest User Details: " + pinterestUserDetails);
 					return savePinterestUser(pinterestUserDetails, user, accessToken, refreshToken, userId);
 				} else {
 					throw new CommonException("Access token not found in response");
@@ -163,13 +162,11 @@ public class PinterestService {
 
 			if (userResponse.getStatusCode() == HttpStatus.OK) {
 				JsonNode userProfileDetails = objectMapper.readTree(userResponse.getBody());
-				System.out.println("Profile: " + userResponse.getBody());
 				String boardsUrl = "https://api-sandbox.pinterest.com/v5/boards";
 				ResponseEntity<String> boardsResponse = restTemplate.exchange(boardsUrl, HttpMethod.GET, httpRequest,
 						String.class);
 				if (boardsResponse.getStatusCode() == HttpStatus.OK) {
 					JsonNode boardsDetails = objectMapper.readTree(boardsResponse.getBody());
-					System.out.println("Boards: " + boardsResponse.getBody());
 					ObjectNode combinedDetails = objectMapper.createObjectNode();
 					combinedDetails.set("userProfile", userProfileDetails);
 					combinedDetails.set("boards", boardsDetails);
@@ -280,13 +277,11 @@ public class PinterestService {
 			}
 
 			String pinterestBoardDetails = pinterestUser.getPinterestBoardDetails();
-			System.out.println("Board Details : " + pinterestBoardDetails);
-
+			
 			Map<String, Object> responseData = new HashMap<>();
 			responseData.put("boardDetails", pinterestBoardDetails);
 
 			String boardId = getBoardIdForBoardName(pinterestUser.getPinterestBoardDetails(), mediaPost.getBoardName());
-			System.out.println("Board Id : " + boardId);
 			if (boardId == null) {
 				structure.setMessage("Please select the Pinterest Board");
 				structure.setCode(HttpStatus.NOT_FOUND.value());
@@ -297,7 +292,6 @@ public class PinterestService {
 			}
 
 			String contentType = mediaFile.getContentType();
-			System.out.println("Content Type : " + contentType);
 			if (contentType != null && contentType.startsWith("image/")) {
 				return sendImageToProfile(pinterestUser, boardId, mediaFile, mediaPost.getTitle(),
 						mediaPost.getCaption(), mediaPost.getBoardName(), userId);
@@ -340,14 +334,12 @@ public class PinterestService {
 
 	private ResponseEntity<ResponseWrapper> sendImageToProfile(PinterestUser ptUser, String boardId,
 			MultipartFile mediaFile, String title, String caption, String boardName, int userId) throws IOException {
-		System.out.println("Coming to sendImageToProfile method");
 		String accessToken = ptUser.getPinterestUserAccessToken();
 		String pinterestApiUrl = "https://api-sandbox.pinterest.com/v5/pins";
 
 		headers.setContentType(MediaType.APPLICATION_JSON);
 		headers.set("Authorization", "Bearer " + accessToken);
-		System.out.println("1");
-
+		
 		String encodedImageData = Base64.getEncoder().encodeToString(mediaFile.getBytes());
 		Map<String, Object> mediaSource = new HashMap<>();
 		mediaSource.put("source_type", "image_base64");
@@ -360,14 +352,11 @@ public class PinterestService {
 		requestBody.put("description", caption);
 		requestBody.put("board_id", boardId);
 		requestBody.put("media_source", mediaSource);
-		System.out.println("2");
-
+		
 		HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(requestBody, headers);
 		ResponseEntity<String> response = restTemplate.postForEntity(pinterestApiUrl, requestEntity, String.class);
-		System.out.println("3");
-
+		
 		if (response.getStatusCode() == HttpStatus.CREATED) {
-			System.out.println("4");
 			successResponse.setMessage("Posted On Pinterest");
 			successResponse.setCode(HttpStatus.OK.value());
 			successResponse.setPlatform("pinterest");

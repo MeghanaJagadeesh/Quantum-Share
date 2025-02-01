@@ -23,7 +23,6 @@ public class PostsDao {
 
 	@Transactional
 	public void deletePages(List<SocialMediaPosts> posts) {
-		System.out.println("deleteposts");
 		List<SocialMediaPosts> postsToRemove = posts.stream().collect(Collectors.toList());
 		postsToRemove.forEach(post -> {
 			postsRepository.delete(post);

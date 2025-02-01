@@ -278,6 +278,7 @@ public class LinkedInProfileService {
 					List<String> organizationUrns = new ArrayList<>();
 					for (JsonNode pageNode : elementsNode) {
 						String organizationURN = pageNode.path("organization").asText();
+						System.out.println("organizationURN : "+organizationURN);
 						organizationUrns.add(organizationURN);
 					}
 					List<String> organizationNames = getOrganizationName(accessToken, organizationUrns);
@@ -297,6 +298,7 @@ public class LinkedInProfileService {
 						}
 						data.add(map);
 					}
+					System.out.println("list : " + organizationUrns);
 					return data;
 				}
 			}

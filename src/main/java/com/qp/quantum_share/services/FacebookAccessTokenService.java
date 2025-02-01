@@ -64,9 +64,7 @@ public class FacebookAccessTokenService {
 	public ResponseEntity<ResponseStructure<String>> verifyToken(String access_Token, QuantumShareUser user,
 			int userId) {
 		JsonNode responseUser = fetchUser(access_Token);
-		System.out.println("user "+responseUser);
 		JsonNode responsePage = fetchUserPages(access_Token);
-		System.out.println("page "+responsePage);
 		return getFBUserDetails(responseUser, responsePage, access_Token);
 //		return saveUser(responseUser, responsePage, access_Token, user,userId);
 	}

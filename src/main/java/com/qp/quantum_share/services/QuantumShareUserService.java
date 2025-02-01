@@ -103,7 +103,6 @@ public class QuantumShareUserService {
 		try {
 			mobile = Long.parseLong(emph);
 		} catch (NumberFormatException e) {
-			System.out.println("catch");
 			email = emph;
 		}
 		if (adminService.isStaff(email)) {
@@ -111,9 +110,7 @@ public class QuantumShareUserService {
 		}
 
 		QuantumShareUser users = userDao.findByEmail(email);
-		System.out.println(users);
 		if (users == null) {
-			System.out.println("user is empty");
 			structure.setCode(HttpStatus.NOT_FOUND.value());
 			structure.setMessage("Invalid email or mobile");
 			structure.setStatus("success");
@@ -130,7 +127,6 @@ public class QuantumShareUserService {
 				structure.setPlatform(null);
 				return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
 			}
-			System.out.println(password + "  " + SecurePassword.decrypt(user.getPassword(), "123"));
 			if (SecurePassword.decrypt(user.getPassword(), "123").equals(password)) {
 				if (user.isVerified()) {
 					String tokenValue = token.generateJWT(user);
@@ -280,7 +276,6 @@ public class QuantumShareUserService {
 	}
 
 	public ResponseEntity<ResponseStructure<String>> verifyEmail(String token) {
-		System.out.println("service");
 		ResponseStructure<String> structure = new ResponseStructure<String>();
 		QuantumShareUser user = userDao.findByVerificationToken(token);
 		if (user != null) {
@@ -398,7 +393,6 @@ public class QuantumShareUserService {
 			}
 //			profilepic = uploadProfileToServer.uploadFile(file);
 			profilepic = postOnServer.uploadFile(file, "profile/");
-			System.out.println("pro : " + profilepic);
 			user.setProfilePic(profilepic);
 			userDao.save(user);
 		}
@@ -533,15 +527,15 @@ public class QuantumShareUserService {
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
 		}
 		boolean creditApplied = userTracking.applyCredit(user);
-		if (!creditApplied) {
-			System.out.println("false");
-			structure.setCode(HttpStatus.NOT_ACCEPTABLE.value());
-			structure.setMessage("Your package has expired. Please Upgrade your package");
-			structure.setStatus("error");
-			structure.setData(null);
-			structure.setPlatform(null);
-			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_ACCEPTABLE);
-		}
+//		if (!creditApplied) {
+//			System.out.println("false");
+//			structure.setCode(HttpStatus.NOT_ACCEPTABLE.value());
+//			structure.setMessage("Your package has expired. Please Upgrade your package");
+//			structure.setStatus("error");
+//			structure.setData(null);
+//			structure.setPlatform(null);
+//			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_ACCEPTABLE);
+//		}
 
 		CompletableFuture<Void> redditFuture = CompletableFuture
 				.runAsync(() -> redditService.checkAndRefreshAccessToken(user));
@@ -554,6 +548,13 @@ public class QuantumShareUserService {
 		Map<String, Object> map = configure.getMap();
 		map.put("credit", user.getCreditSystem().getRemainingCredit());
 		map.put("trail", user.isTrial());
+		SubscriptionDetails subscription = user.getSubscriptionDetails();
+		if (subscription == null)
+			map.put("subscription", false);
+		else if (!subscription.isSubscribed())
+			map.put("subscription", false);
+		else
+			map.put("subscription", true);
 		map.put("remainingdays", calculateRemainingPackageDays(user));
 		structure.setData(map);
 		structure.setCode(HttpStatus.OK.value());
@@ -599,15 +600,12 @@ public class QuantumShareUserService {
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
 		}
 		SocialAccounts accounts = user.getSocialAccounts();
-		System.out.println(accounts);
 		if (accounts == null || accounts.getFacebookUser() == null) {
-			System.out.println("fb before structure : " + structure);
 			structure.setCode(119);
 			structure.setMessage("user has not connected facebook platforms");
 			structure.setPlatform("facebook");
 			structure.setStatus("error");
 			structure.setData(null);
-			System.out.println("fb after structure : " + structure);
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
 		}
 		FaceBookUser fbuser = accounts.getFacebookUser();
@@ -629,14 +627,11 @@ public class QuantumShareUserService {
 			fb.put("user_id", userId);
 			data.put("facebook", fb);
 		}
-		System.out.println(data);
-		System.out.println("fb before connected: " + structure);
 		structure.setData(data);
 		structure.setCode(HttpStatus.OK.value());
 		structure.setMessage(null);
 		structure.setStatus("success");
 		structure.setPlatform(null);
-		System.out.println("fb after connected: " + structure);
 		return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
 	}
 
@@ -655,12 +650,10 @@ public class QuantumShareUserService {
 		SocialAccounts accounts = user.getSocialAccounts();
 		if (accounts == null || accounts.getInstagramUser() == null) {
 			structure.setCode(119);
-			System.out.println("insta before structure" + structure);
 			structure.setMessage("user has not connected Instagram platforms");
 			structure.setPlatform("instagram");
 			structure.setStatus("error");
 			structure.setData(null);
-			System.out.println("insta after structure" + structure);
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
 		}
 		InstagramUser instaUser = accounts.getInstagramUser();
@@ -681,13 +674,11 @@ public class QuantumShareUserService {
 			insta.put("user_id", userId);
 			data.put("instagram", insta);
 		}
-		System.out.println("insta before connected " + structure);
 		structure.setData(data);
 		structure.setCode(HttpStatus.OK.value());
 		structure.setMessage(null);
 		structure.setStatus("success");
 		structure.setPlatform(null);
-		System.out.println("insta after connected " + structure);
 		return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
 	}
 
@@ -704,13 +695,11 @@ public class QuantumShareUserService {
 		}
 		SocialAccounts accounts = user.getSocialAccounts();
 		if (accounts == null || accounts.getTelegramUser() == null) {
-			System.out.println("telegram before structure : " + structure);
 			structure.setCode(119);
 			structure.setMessage("user has not connected telegram platforms");
 			structure.setPlatform("telegram");
 			structure.setStatus("error");
 			structure.setData(null);
-			System.out.println("telegram after structure " + structure);
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
 		}
 		TelegramUser telegramUser = accounts.getTelegramUser();
@@ -732,14 +721,11 @@ public class QuantumShareUserService {
 			telegram.put("user_id", userId);
 			data.put("telegram", telegram);
 		}
-		System.out.println("telegram before connected " + structure);
 		structure.setData(data);
 		structure.setCode(HttpStatus.OK.value());
 		structure.setMessage(null);
 		structure.setStatus("success");
 		structure.setPlatform(null);
-		System.out.println("telegram after connected");
-		System.out.println(structure);
 		return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
 	}
 
@@ -757,13 +743,11 @@ public class QuantumShareUserService {
 
 		SocialAccounts accounts = user.getSocialAccounts();
 		if (accounts == null || (!accounts.isLinkedInPagePresent() && accounts.getLinkedInProfileDto() == null)) {
-			System.out.println("linkedin before structure " + structure);
 			structure.setCode(119);
 			structure.setMessage("User has not connected LinkedIn platforms");
 			structure.setPlatform("LinkedIn");
 			structure.setStatus("error");
 			structure.setData(null);
-			System.out.println("linkedin after structure " + structure);
 			return new ResponseEntity<>(structure, HttpStatus.NOT_FOUND);
 		}
 
@@ -786,13 +770,11 @@ public class QuantumShareUserService {
 			linkedIn.put("linkedInUserName", linkedInUser.getLinkedinProfileUserName());
 		}
 		data.put("linkedIn", linkedIn);
-		System.out.println("linkedin before connected " + structure);
 		structure.setData(data);
 		structure.setCode(HttpStatus.OK.value());
 		structure.setMessage(null);
 		structure.setStatus("success");
 		structure.setPlatform("LinkedIn");
-		System.out.println("linkedin after connected " + structure);
 		return new ResponseEntity<>(structure, HttpStatus.OK);
 	}
 
@@ -811,15 +793,13 @@ public class QuantumShareUserService {
 		SocialAccounts accounts = user.getSocialAccounts();
 		if (accounts == null || accounts.getYoutubeUser() == null) {
 
-			System.out.println("utube before structure" + structure);
 			structure.setCode(119);
 			structure.setMessage("user has not connected youtube platforms");
 			structure.setPlatform("youtube");
 			structure.setStatus("error");
 			structure.setData(null);
 
-			System.out.println("utube after structure" + structure);
-			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
+				return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
 		}
 		YoutubeUser youTubeUser = accounts.getYoutubeUser();
 		Map<String, Object> data = configure.getMap();
@@ -840,13 +820,11 @@ public class QuantumShareUserService {
 			data.put("youtube", youtube);
 		}
 
-		System.out.println("u tube before connect" + structure);
 		structure.setData(data);
 		structure.setCode(HttpStatus.OK.value());
 		structure.setMessage(null);
 		structure.setStatus("success");
 		structure.setPlatform("youtube");
-		System.out.println("utube after connected" + structure);
 		return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
 	}
 
@@ -1130,13 +1108,11 @@ public class QuantumShareUserService {
 		}
 		SocialAccounts accounts = user.getSocialAccounts();
 		if (accounts == null || accounts.getPinterestUser() == null) {
-			System.out.println("pinterest before structure" + structure);
 			structure.setCode(119);
 			structure.setMessage("user has not connected pinterest");
 			structure.setPlatform("pinterest");
 			structure.setStatus("error");
 			structure.setData(null);
-			System.out.println("pinterest after structure" + structure);
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
 		}
 		PinterestUser pinterestUser = accounts.getPinterestUser();
@@ -1159,13 +1135,11 @@ public class QuantumShareUserService {
 			data.put("pinterest", pinterest);
 		}
 
-		System.out.println("pinterest before connect" + structure);
 		structure.setData(data);
 		structure.setCode(HttpStatus.OK.value());
 		structure.setMessage(null);
 		structure.setStatus("success");
 		structure.setPlatform("pinterest");
-		System.out.println("pinterest after connected" + structure);
 		return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
 	}
 

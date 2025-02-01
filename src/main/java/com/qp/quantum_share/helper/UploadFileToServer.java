@@ -32,7 +32,7 @@ public class UploadFileToServer {
 			ObjectMetadata metadata = configuration.getMetaObject();
 			metadata.setContentType(file.getContentType());
 			PutObjectRequest request = new PutObjectRequest(BUCKET_NAME, key, file.getInputStream(), metadata);
-			PutObjectResult result = s3Client.putObject(request);
+			s3Client.putObject(request);
 
 			String publicUrl = s3Client.getUrl(BUCKET_NAME, key).toString();
 			return publicUrl;

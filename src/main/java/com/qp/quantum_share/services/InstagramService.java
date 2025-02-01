@@ -341,7 +341,6 @@ public class InstagramService {
 
 	public ResponseEntity<ResponseStructure<String>> saveInstaUser(InstagramUser instaUser, QuantumShareUser user) {
 		try {
-			System.out.println(instaUser);
 			if (user.getSocialAccounts() == null) {
 				SocialAccounts socialAccounts = new SocialAccounts();
 				socialAccounts.setInstagramUser(instaUser);

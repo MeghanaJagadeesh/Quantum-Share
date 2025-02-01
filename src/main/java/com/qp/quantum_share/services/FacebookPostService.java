@@ -94,7 +94,6 @@ public class FacebookPostService {
 
 	public ResponseEntity<List<Object>> postMediaToPage(MediaPost mediaPost, MultipartFile mediaFile, FaceBookUser user,
 			QuantumShareUser qsuser, int userId) {
-		System.out.println("postMediaToPage");
 		List<Object> mainresponse = config.getList();
 		mainresponse.clear();
 		HttpHeaders responseHeaders = new HttpHeaders();
@@ -202,7 +201,6 @@ public class FacebookPostService {
 					}
 
 				} else {
-					System.out.println("photo");
 					String apiurl = "https://graph.facebook.com/v21.0/";
 					headers.setBearerAuth(pageAccessToken);
 					MultiValueMap<String, Object> map = config.getMultiValueMap();
@@ -214,7 +212,6 @@ public class FacebookPostService {
 					};
 					boolean schedule = mediaPost.getScheduledTime() != null && mediaPost.getUserTimeZone() != null;
 					if (schedule) {
-						System.out.println("scheduled");
 						long unixTime = utcTime.ConvertScheduledTimeFromLocal(mediaPost.getScheduledTime(),
 								mediaPost.getUserTimeZone());
 						map.add("published", false);
@@ -223,14 +220,11 @@ public class FacebookPostService {
 					map.add("source", mediaResource);
 					map.add("message", mediaPost.getCaption());
 					HttpEntity<MultiValueMap<String, Object>> requestEntity = config.getHttpEntityWithMap(map, headers);
-					System.out.println("before");
 					ResponseEntity<JsonNode> photoresponse = restTemplate.exchange(apiurl + facebookPageId + "/photos",
 							HttpMethod.POST, requestEntity, JsonNode.class);
-					System.out.println("after");
 					String pagename = page.getPageName();
 					if (photoresponse.getStatusCode().is2xxSuccessful()) {
 						if (photoresponse.getBody().get("id") != null) {
-							System.out.println(photoresponse.getBody());
 							if (schedule) {
 								SuccessResponse succesresponse = config.getSuccessResponse();
 								succesresponse.setCode(HttpStatus.OK.value());
@@ -320,7 +314,6 @@ public class FacebookPostService {
 			}
 			body.add("description", message);
 			if (schedule) {
-				System.out.println("scheduled");
 				long unixTime = utcTime.ConvertScheduledTimeFromLocal(mediaPost.getScheduledTime(),
 						mediaPost.getUserTimeZone());
 				body.add("published", false);
@@ -331,7 +324,6 @@ public class FacebookPostService {
 					JsonNode.class);
 			return response;
 		} catch (Exception e) {
-			System.out.println("facebook");
 			e.printStackTrace();
 			throw new CommonException(e.getMessage());
 		}

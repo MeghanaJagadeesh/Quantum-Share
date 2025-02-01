@@ -21,14 +21,11 @@ public class TestClass {
 	public void convertdate() {
 		 String dateString = "15-01-2025 15:30";
 		 String userTimeZone="America/New_York";
-		 System.out.println(utcTime.ConvertScheduledTimeFromLocal(dateString, userTimeZone));
-	        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
+		    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
 	        
 	        LocalDateTime dateTime = LocalDateTime.parse(dateString, formatter);
-	        System.out.println(dateTime+" "+dateString.toString());
 	        long unixTime = dateTime.atZone(ZoneId.systemDefault()).toEpochSecond();
 	        
-	        System.out.println("Unix Time in Seconds: " + unixTime);
 	        
 	}
 }
