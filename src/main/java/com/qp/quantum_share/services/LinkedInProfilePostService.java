@@ -313,7 +313,7 @@ public class LinkedInProfilePostService {
 				user.setCreditSystem(credits);
 				userDao.save(user);
 				saveLinkedInPost(responseEntity.getBody().get("id").asText(), pageURN, user,
-						shareMediaCategory.equals("IMAGE") ? "image" : "video", "linkedinPage", pageName, accessToken,
+						shareMediaCategory.equals("IMAGE") ? "image" : "video", pageName, accessToken,
 						size);
 
 				response.setStatus("success");
@@ -332,7 +332,7 @@ public class LinkedInProfilePostService {
 		return response;
 	}
 
-	private void saveLinkedInPost(String postId, String pageURN, QuantumShareUser user, String type, String profileType,
+	private void saveLinkedInPost(String postId, String pageURN, QuantumShareUser user, String type, 
 			String pageName, String accessToken, long size) {
 		if (type.equals("video")) {
 			try {
@@ -374,7 +374,7 @@ public class LinkedInProfilePostService {
 				postUrl = body2.get("downloadUrl").asText();
 			}
 
-			analyticsPostService.savePost(postId, pageURN, user, type, profileType, pageName, postUrl);
+			analyticsPostService.savePost(postId, pageURN, user, type, "linkedin", pageName, postUrl);
 		} catch (Exception e) {
 			e.printStackTrace();
 			throw new CommonException(e.getMessage());

@@ -398,6 +398,7 @@ public class SocialMediaLoginController {
 			page.setLinkedinPageName(linkedinPageData.get("name").toString());
 			page.setLinkedinPageURN(linkedinPageData.get("urn").toString());
 			page.setLinkedinPageImage(linkedinPageData.get("profile_image").toString());
+			System.out.println("page");
 			return linkedInProfileService.saveSelectedPage(page, user, userId);
 		} else {
 			structure.setCode(HttpStatus.BAD_GATEWAY.value());

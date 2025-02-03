@@ -17,6 +17,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.qp.quantum_share.dto.FacebookPageDetails;
@@ -33,6 +35,19 @@ import org.springframework.core.io.ByteArrayResource;
 
 @Component
 public class ConfigurationClass {
+
+	@Bean
+	public WebMvcConfigurer configurer() {
+		return new WebMvcConfigurer() {
+			@Override
+			public void addCorsMappings(CorsRegistry reg) {
+				reg.addMapping("/**").allowedOrigins("*").allowedMethods("*");
+//						.allowedOrigins("http://localhost:3000/", "https://quantumshare.quantumparadigm.in/")
+
+			}
+		};
+	}
+
 	@Bean
 	public HttpHeaders httpHeaders() {
 		return new HttpHeaders();
@@ -70,11 +85,11 @@ public class ConfigurationClass {
 
 	@Bean
 	public RestTemplate getRestTemplate() {
-		SimpleClientHttpRequestFactory  factory = new SimpleClientHttpRequestFactory();
-	    factory.setConnectTimeout(5000);  
-	    factory.setReadTimeout(30000);    
+		SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+		factory.setConnectTimeout(5000);
+		factory.setReadTimeout(30000);
 
-	    return new RestTemplate(factory);
+		return new RestTemplate(factory);
 	}
 
 	@Bean
@@ -182,7 +197,7 @@ public class ConfigurationClass {
 	public SocialMediaPosts getsocialMediaPosts() {
 		return new SocialMediaPosts();
 	}
-	
+
 	@Bean
 	@Lazy
 	public HttpEntity<byte[]> getByteHttpEntity(byte[] byteArray, HttpHeaders headers) {

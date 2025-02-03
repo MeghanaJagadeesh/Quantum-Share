@@ -316,7 +316,7 @@ public class AnalyticsPostService {
 				return twitterAnalytics(user, pid);
 			} else if (post.getPlatformName().equals("reddit")) {
 				return redditAnalytics(user, pid);
-			} else if (post.getPlatformName().equals("linkedinPage")) {
+			} else if (post.getPlatformName().equals("linkedin")) {
 				return LinkedInAnalytics(user, pid);
 			}
 			return null;
@@ -358,7 +358,7 @@ public class AnalyticsPostService {
 				JsonNode commentSummary = body.path("commentSummary");
 
 				reactionSummaries.fields().forEachRemaining(entry -> {
-					String reactionType = entry.getKey();
+					String reactionType = entry.getKey().toLowerCase();
 					int count = entry.getValue().path("count").asInt();
 					insight.put(reactionType, count);
 				});

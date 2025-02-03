@@ -364,6 +364,7 @@ public class LinkedInProfileService {
 			socialAccounts.setLinkedInPagePresent(true);
 			user.setSocialAccounts(accounts);
 		} else if (socialAccounts.getLinkedInPages() == null) {
+			System.out.println("page null");
 			socialAccounts.setLinkedInPages(pages);
 			socialAccounts.setLinkedInPagePresent(true);
 			user.setSocialAccounts(socialAccounts);

@@ -234,7 +234,7 @@ public class SocialMediaLogoutService {
 			userDao.save(user);
 
 			linkedInPageDao.deletePage(pages);
-
+			analyticsPostService.deletePosts(user, "linkedin");
 			ResponseStructure<String> response = new ResponseStructure<>();
 			response.setCode(HttpStatus.OK.value());
 			response.setMessage("LinkedIn Page Disconnected Successfully");

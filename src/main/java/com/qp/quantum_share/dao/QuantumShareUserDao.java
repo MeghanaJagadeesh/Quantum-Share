@@ -15,6 +15,7 @@ public class QuantumShareUserDao {
 	QuantumShareUserRespository userRespository;
 
 	public void saveUser(QuantumShareUser user) {
+		System.out.println("saved");
 		userRespository.save(user);
 	}
 
