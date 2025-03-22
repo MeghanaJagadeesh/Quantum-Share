@@ -26,9 +26,6 @@ public class AnalyticsController {
 	@Autowired
 	HttpServletRequest request;
 
-//	@Autowired
-//	ResponseStructure<String> structure;
-
 	@Autowired
 	JwtUtilConfig jwtUtilConfig;
 

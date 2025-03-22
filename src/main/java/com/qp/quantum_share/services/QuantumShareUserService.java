@@ -39,7 +39,6 @@ import com.qp.quantum_share.helper.JwtToken;
 import com.qp.quantum_share.helper.PostOnServer;
 import com.qp.quantum_share.helper.SecurePassword;
 import com.qp.quantum_share.helper.SendMail;
-import com.qp.quantum_share.helper.UploadProfileToServer;
 import com.qp.quantum_share.response.ResponseStructure;
 
 @Service
@@ -71,9 +70,6 @@ public class QuantumShareUserService {
 
 	@Autowired
 	SubscriptionDetails subscriptionDetails;
-
-	@Autowired
-	UploadProfileToServer uploadProfileToServer;
 
 	@Autowired
 	QuantumShareUserTracking userTracking;
@@ -366,8 +362,8 @@ public class QuantumShareUserService {
 		return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
 	}
 
-	public ResponseEntity<ResponseStructure<String>> accountOverView(int userId, MultipartFile file, String firstname,
-			String lastname, String email, Long phoneNo, String company) {
+	public ResponseEntity<ResponseStructure<String>> accountOverView(int userId, MultipartFile[] mediaFile,
+			String firstname, String lastname, String email, Long phoneNo, String company) {
 		ResponseStructure<String> structure = new ResponseStructure<String>();
 		QuantumShareUser user = userDao.fetchUser(userId);
 		if (user == null) {
@@ -380,6 +376,7 @@ public class QuantumShareUserService {
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
 		}
 		String profilepic = null;
+		MultipartFile file = mediaFile[0];
 		if (file != null) {
 			if (!file.getContentType().startsWith("image")) {
 				structure.setCode(HttpStatus.BAD_REQUEST.value());
@@ -391,8 +388,7 @@ public class QuantumShareUserService {
 
 				return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.UNAUTHORIZED);
 			}
-//			profilepic = uploadProfileToServer.uploadFile(file);
-			profilepic = postOnServer.uploadFile(file, "profile/");
+			profilepic = postOnServer.uploadFile(mediaFile, "profile/").get(0);
 			user.setProfilePic(profilepic);
 			userDao.save(user);
 		}
@@ -799,7 +795,7 @@ public class QuantumShareUserService {
 			structure.setStatus("error");
 			structure.setData(null);
 
-				return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
+			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.NOT_FOUND);
 		}
 		YoutubeUser youTubeUser = accounts.getYoutubeUser();
 		Map<String, Object> data = configure.getMap();

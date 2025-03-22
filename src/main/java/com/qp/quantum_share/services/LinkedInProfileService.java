@@ -188,6 +188,7 @@ public class LinkedInProfileService {
 	public Map<String, Object> getProfileInfo(String accessToken, QuantumShareUser user, int userId) {
 		String userInfoUrl = "https://api.linkedin.com/v2/me";
 		HttpHeaders headers = new HttpHeaders();
+		System.out.println("access token linkedin "+accessToken);
 		headers.setBearerAuth(accessToken);
 		headers.setContentType(MediaType.APPLICATION_JSON);
 		HttpEntity<String> entity = config.getHttpEntity(headers);
@@ -358,16 +359,25 @@ public class LinkedInProfileService {
 		SocialAccounts socialAccounts = user.getSocialAccounts();
 		pages.setLinkedinPageFollowers(networkSizeResponse);
 		if (socialAccounts == null) {
-			System.out.println("account null");
 			socialAccounts = new SocialAccounts();
 			socialAccounts.setLinkedInPages(pages);
 			socialAccounts.setLinkedInPagePresent(true);
 			user.setSocialAccounts(accounts);
 		} else if (socialAccounts.getLinkedInPages() == null) {
-			System.out.println("page null");
 			socialAccounts.setLinkedInPages(pages);
 			socialAccounts.setLinkedInPagePresent(true);
 			user.setSocialAccounts(socialAccounts);
+		}else {
+			LinkedInPageDto exPage = socialAccounts.getLinkedInPages();	
+			exPage.setLinkedinPageAccessToken(pages.getLinkedinPageAccessToken());
+			exPage.setLinkedinPageFollowers(pages.getLinkedinPageFollowers());
+			exPage.setLinkedinPageImage(pages.getLinkedinPageImage());
+			exPage.setLinkedinPageName(pages.getLinkedinPageName());
+			exPage.setLinkedinPageURN(pages.getLinkedinPageURN());
+			socialAccounts.setLinkedInPages(pages);
+			user.setSocialAccounts(socialAccounts);
+			userDao.save(user);
+			
 		}
 		userDao.saveUser(user);
 		response.setCode(HttpStatus.OK.value());

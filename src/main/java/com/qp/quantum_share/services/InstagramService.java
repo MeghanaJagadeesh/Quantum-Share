@@ -34,7 +34,6 @@ import com.qp.quantum_share.exception.CommonException;
 import com.qp.quantum_share.exception.FBException;
 import com.qp.quantum_share.helper.GenerateId;
 import com.qp.quantum_share.helper.PostOnServer;
-import com.qp.quantum_share.helper.UploadFileToServer;
 import com.qp.quantum_share.response.ErrorResponse;
 import com.qp.quantum_share.response.ResponseStructure;
 import com.qp.quantum_share.response.ResponseWrapper;
@@ -47,10 +46,7 @@ import com.restfb.types.GraphResponse;
 
 @Service
 public class InstagramService {
-
-	@Autowired
-	UploadFileToServer uploadFileToServer;
-
+	
 	@Autowired
 	ConfigurationClass configuration;
 
@@ -90,13 +86,14 @@ public class InstagramService {
 	@Autowired
 	PostOnServer postOnServer;
 
-	public ResponseEntity<ResponseWrapper> postMediaToPage(MediaPost mediaPost, MultipartFile mediaFile,
+	public ResponseEntity<ResponseWrapper> postMediaToPage(MediaPost mediaPost, MultipartFile[] file,
 			InstagramUser instagramUser, int userId) {
 		String accessToken = instagramUser.getInstUserAccessToken();
 		ResponseStructure<String> structure = new ResponseStructure<String>();
 
-		String fileUrl = postOnServer.uploadFile(mediaFile, "posts/");
-
+		List<String> url = postOnServer.uploadFile(file, "posts/");
+		String fileUrl=url.get(0);
+		MultipartFile mediaFile=file[0];
 		if (fileUrl == null) {
 			structure.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			structure.setMessage("An error occured while uploading on server");

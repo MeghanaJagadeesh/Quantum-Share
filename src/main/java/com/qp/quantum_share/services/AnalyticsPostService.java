@@ -82,6 +82,7 @@ public class AnalyticsPostService {
 		post.setPostid(id);
 		post.setMediaType(contentType);
 		post.setPlatformName(platform);
+		System.out.println("instanta");
 		post.setPostDate(Instant.now());
 		post.setProfileId(profileid);
 
@@ -132,6 +133,7 @@ public class AnalyticsPostService {
 
 	public ResponseEntity<ResponseStructure<String>> getRecentPost(String postId, QuantumShareUser user) {
 		SocialMediaPosts post = postsDao.getPostByPostId(postId);
+		System.out.println(post);
 		if (post == null) {
 			ResponseStructure<String> structure = new ResponseStructure<String>();
 			structure.setCode(HttpStatus.NOT_FOUND.value());
@@ -144,6 +146,7 @@ public class AnalyticsPostService {
 		if (post.getPlatformName().equals("facebook")) {
 			return fetchFacebookRecentPost(post, user, postId);
 		} else if (post.getPlatformName().equals("instagram")) {
+			System.out.println("instagram");
 			return fetchInstagramRecentPost(post, user, postId);
 		} else if (post.getPlatformName().equals("youtube")) {
 			return fetchYoutubeRecentPost(post, user, postId);
@@ -177,7 +180,7 @@ public class AnalyticsPostService {
 			userDao.save(user);
 			ResponseStructure<String> structure = new ResponseStructure<String>();
 			structure.setCode(HttpStatus.OK.value());
-			structure.setData(post);
+//			structure.setData(post);
 			structure.setMessage(null);
 			structure.setPlatform("youtube");
 			structure.setStatus("success");
@@ -211,11 +214,14 @@ public class AnalyticsPostService {
 		ResponseEntity<JsonNode> response = restTemplate.exchange(
 				"https://graph.facebook.com/v20.0/" + postId + "?fields=media_url", HttpMethod.GET, entity,
 				JsonNode.class);
+		System.err.println(response);
 		post.setImageUrl(response.getBody().has("media_url") ? response.getBody().get("media_url").asText() : null);
+		System.out.println("before save");
 		userDao.save(user);
+		System.out.println("after save");
 		ResponseStructure<String> structure = new ResponseStructure<String>();
 		structure.setCode(HttpStatus.OK.value());
-		structure.setData(post);
+//		structure.setData(post);
 		structure.setMessage(null);
 		structure.setPlatform("instagram");
 		structure.setStatus("success");
@@ -252,7 +258,7 @@ public class AnalyticsPostService {
 			userDao.save(user);
 			ResponseStructure<String> structure = new ResponseStructure<String>();
 			structure.setCode(HttpStatus.OK.value());
-			structure.setData(post);
+//			structure.setData(post);
 			structure.setMessage(null);
 			structure.setPlatform("facebook");
 			structure.setStatus("success");
@@ -269,13 +275,16 @@ public class AnalyticsPostService {
 	}
 
 	public ResponseEntity<ResponseStructure<String>> getHistory(QuantumShareUser user) {
+		System.out.println("history");
 		List<SocialMediaPosts> list = postsDao.getRecentPosts(user.getUserId());
 		ResponseStructure<String> structure = new ResponseStructure<String>();
 		structure.setCode(HttpStatus.OK.value());
 		structure.setMessage(null);
 		structure.setPlatform(null);
 		structure.setStatus(null);
+		System.out.println("bf");
 		structure.setData(list);
+		System.out.println("af");
 		return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.OK);
 	}
 

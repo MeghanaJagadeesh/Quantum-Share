@@ -120,7 +120,7 @@ public class PostController {
 	}
 
 	@PostMapping("/post/file/instagram")
-	public ResponseEntity<ResponseWrapper> postToInsta(MultipartFile mediaFile, @ModelAttribute MediaPost mediaPost) {
+	public ResponseEntity<ResponseWrapper> postToInsta(MultipartFile[] mediaFile, @ModelAttribute MediaPost mediaPost) {
 		Object userId1 = commonMethod.validateToken(request.getHeader("Authorization"));
 		int userId = Integer.parseInt(userId1.toString());
 		QuantumShareUser user = userDao.fetchUser(userId);
@@ -359,7 +359,7 @@ public class PostController {
 	// REDDIT LINK POSTING
 	@PostMapping("/post/file/reddit")
 	public ResponseEntity<ResponseStructure<JsonNode>> submitLinkPost(@RequestParam("sr") String subreddit,
-			MediaPost mediaPost, MultipartFile mediaFile) {
+			MediaPost mediaPost, MultipartFile[] mediaFile) {
 
 		ResponseStructure<JsonNode> responseStructure = new ResponseStructure<>();
 		Object userId1 = commonMethod.validateToken(request.getHeader("Authorization"));

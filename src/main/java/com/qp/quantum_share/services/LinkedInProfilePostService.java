@@ -27,8 +27,6 @@ import com.qp.quantum_share.response.ResponseStructure;
 
 @Service
 public class LinkedInProfilePostService {
-//	@Autowired
-//	ResponseStructure<String> response;
 
 	@Autowired
 	RestTemplate restTemplate;
@@ -55,14 +53,15 @@ public class LinkedInProfilePostService {
 			String mediaType = determineMediaType(mediaFile);
 			// step 1
 			JsonNode uploadResponse = registerUpload(recipeType, accessToken, profileURN);
-			
+
 			String uploadUrl = uploadResponse.get("value").get("uploadMechanism")
 					.get("com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest").get("uploadUrl").asText();
 			String mediaAsset = uploadResponse.get("value").get("asset").asText();
 			// step 2
 			if (uploadImage(uploadUrl, mediaFile, accessToken, userId)) {
 				// step 3
-				return createLinkedInPost(mediaAsset, caption, mediaType, accessToken, profileURN, userId);
+				return createLinkedInPost(mediaAsset, caption, mediaType, accessToken, profileURN, userId,
+						linkedInProfileUser.getLinkedinProfileUserName(), mediaFile.getSize());
 			} else {
 				response.setStatus("error");
 				response.setMessage("Internal server eooro");
@@ -146,7 +145,7 @@ public class LinkedInProfilePostService {
 
 	// step 3
 	private ResponseStructure<String> createLinkedInPost(String mediaAsset, String caption, String mediaType,
-			String accessToken, String profileURN, int userId) {
+			String accessToken, String profileURN, int userId, String profileName, long size) {
 		ResponseStructure<String> response = new ResponseStructure<String>();
 
 		try {
@@ -169,18 +168,19 @@ public class LinkedInProfilePostService {
 					+ "        \"com.linkedin.ugc.MemberNetworkVisibility\": \"PUBLIC\"\n" + "    }\n" + "}";
 
 			HttpEntity<String> requestEntity = config.getHttpEntity(requestBody, headers);
-			ResponseEntity<String> responseEntity = restTemplate.exchange("https://api.linkedin.com/v2/ugcPosts",
-					HttpMethod.POST, requestEntity, String.class);
+			ResponseEntity<JsonNode> responseEntity = restTemplate.exchange("https://api.linkedin.com/v2/ugcPosts",
+					HttpMethod.POST, requestEntity, JsonNode.class);
 
 			if (responseEntity.getStatusCode() == HttpStatus.CREATED) {
+				System.out.println("response : " + responseEntity.getBody()+" "+mediaType);
 				QuantumShareUser user = userDao.fetchUser(userId);
 				CreditSystem credits = user.getCreditSystem();
 				credits.setRemainingCredit(credits.getRemainingCredit() - 1);
 				user.setCreditSystem(credits);
 				userDao.save(user);
+				saveLinkedInPost(responseEntity.getBody().get("id").asText(), profileURN, user,
+						mediaType.equals("IMAGE") ? "image" : "video", profileName, accessToken, size);
 
-//				analyticsPostService.savePost(response.getId(), instagramUserId, user, "image", "instagram",
-//						profileName);
 				response.setStatus("Success");
 				response.setPlatform("linkedin");
 				response.setMessage("Posted To LinkedIn Profile");
@@ -313,8 +313,7 @@ public class LinkedInProfilePostService {
 				user.setCreditSystem(credits);
 				userDao.save(user);
 				saveLinkedInPost(responseEntity.getBody().get("id").asText(), pageURN, user,
-						shareMediaCategory.equals("IMAGE") ? "image" : "video", pageName, accessToken,
-						size);
+						shareMediaCategory.equals("IMAGE") ? "image" : "video", pageName, accessToken, size);
 
 				response.setStatus("success");
 				response.setMessage("Posted To LinkedIn Page");
@@ -332,8 +331,8 @@ public class LinkedInProfilePostService {
 		return response;
 	}
 
-	private void saveLinkedInPost(String postId, String pageURN, QuantumShareUser user, String type, 
-			String pageName, String accessToken, long size) {
+	private void saveLinkedInPost(String postId, String pageURN, QuantumShareUser user, String type, String pageName,
+			String accessToken, long size) {
 		if (type.equals("video")) {
 			try {
 				if (size < 20 * 1024 * 1024) {
@@ -344,7 +343,7 @@ public class LinkedInProfilePostService {
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-			}
+		}
 		try {
 			HttpHeaders headers = new HttpHeaders();
 			headers.setBearerAuth(accessToken);
@@ -358,7 +357,7 @@ public class LinkedInProfilePostService {
 			String mediaId = null;
 			if (response.getStatusCode().is2xxSuccessful()) {
 				mediaId = body.path("content").path("media").path("id").asText();
-				}
+			}
 			String postUrl = null;
 			String apiUrl = "https://api.linkedin.com/rest/";
 			if (mediaId.startsWith("urn:li:image")) {

@@ -107,7 +107,6 @@ public class SocialMediaLoginController {
 	@Autowired
 	CommonMethod commonMethod;
 
-	// facebook Login
 	@GetMapping("/facebook/user/verify-token")
 	public ResponseEntity<ResponseStructure<String>> callback(@RequestParam(required = false) String code) {
 		Object userId1 = commonMethod.validateToken(request.getHeader("Authorization"));

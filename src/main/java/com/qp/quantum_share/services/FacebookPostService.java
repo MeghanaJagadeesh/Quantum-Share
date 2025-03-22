@@ -8,6 +8,7 @@ import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -21,6 +22,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.qp.quantum_share.configuration.ConfigurationClass;
 import com.qp.quantum_share.dao.FacebookUserDao;
 import com.qp.quantum_share.dao.QuantumShareUserDao;
@@ -75,6 +77,9 @@ public class FacebookPostService {
 
 	@Autowired
 	SocialMediaLogoutService mediaLogoutService;
+	
+	@Autowired
+	ObjectMapper mapper;
 
 	private static final long MAX_FILE_SIZE = 60 * 1024 * 1024;
 
@@ -203,6 +208,7 @@ public class FacebookPostService {
 				} else {
 					String apiurl = "https://graph.facebook.com/v21.0/";
 					headers.setBearerAuth(pageAccessToken);
+					headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 					MultiValueMap<String, Object> map = config.getMultiValueMap();
 					ByteArrayResource mediaResource = new ByteArrayResource(mediaFile.getBytes()) {
 						@Override
@@ -210,6 +216,13 @@ public class FacebookPostService {
 							return mediaFile.getOriginalFilename();
 						}
 					};
+					ContentDisposition contentDisposition = ContentDisposition.builder("form-data").name("source")
+							.filename(mediaFile.getOriginalFilename()).build();
+
+					HttpHeaders fileHeaders = new HttpHeaders();
+					fileHeaders.setContentDisposition(contentDisposition);
+					fileHeaders.setContentType(MediaType.valueOf(mediaFile.getContentType()));
+					HttpEntity<ByteArrayResource> fileEntity = new HttpEntity<>(mediaResource, fileHeaders);
 					boolean schedule = mediaPost.getScheduledTime() != null && mediaPost.getUserTimeZone() != null;
 					if (schedule) {
 						long unixTime = utcTime.ConvertScheduledTimeFromLocal(mediaPost.getScheduledTime(),
@@ -217,14 +230,15 @@ public class FacebookPostService {
 						map.add("published", false);
 						map.add("scheduled_publish_time", unixTime);
 					}
-					map.add("source", mediaResource);
+					map.add("source", fileEntity);
 					map.add("message", mediaPost.getCaption());
 					HttpEntity<MultiValueMap<String, Object>> requestEntity = config.getHttpEntityWithMap(map, headers);
-					ResponseEntity<JsonNode> photoresponse = restTemplate.exchange(apiurl + facebookPageId + "/photos",
-							HttpMethod.POST, requestEntity, JsonNode.class);
+					ResponseEntity<String> photores = restTemplate.exchange(apiurl + facebookPageId + "/photos",
+							HttpMethod.POST, requestEntity, String.class);
+					JsonNode photoresponse = mapper.readTree(photores.getBody());
 					String pagename = page.getPageName();
-					if (photoresponse.getStatusCode().is2xxSuccessful()) {
-						if (photoresponse.getBody().get("id") != null) {
+					if (photores.getStatusCode().is2xxSuccessful()) {
+						if (photoresponse.get("id") != null) {
 							if (schedule) {
 								SuccessResponse succesresponse = config.getSuccessResponse();
 								succesresponse.setCode(HttpStatus.OK.value());
@@ -234,7 +248,7 @@ public class FacebookPostService {
 								succesresponse.setPlatform("facebook");
 								mainresponse.add(succesresponse);
 							} else {
-								analyticsPostService.savePost(photoresponse.getBody().get("id").asText(),
+								analyticsPostService.savePost(photoresponse.get("id").asText(),
 										facebookPageId, qsuser, mediaFile.getContentType(), "facebook", pagename);
 								SuccessResponse succesresponse = config.getSuccessResponse();
 								QuantumShareUser qs = userDao.fetchUser(userId);
@@ -245,7 +259,7 @@ public class FacebookPostService {
 								Map<String, Object> map1 = new LinkedHashMap<String, Object>();
 								map1.put("mediaType", mediaFile.getContentType());
 								map1.put("mediaSize", mediaFile.getSize());
-								map1.put("response", photoresponse.getBody());
+								map1.put("response", photoresponse);
 								succesresponse.setCode(HttpStatus.OK.value());
 								succesresponse.setMessage("Posted On " + page.getPageName() + " FaceBook Page");
 								succesresponse.setStatus("success");
@@ -260,7 +274,7 @@ public class FacebookPostService {
 						errResponse.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 						errResponse.setMessage("Request Failed to post on " + page.getPageName());
 						errResponse.setStatus("error");
-						errResponse.setData(photoresponse.getBody());
+						errResponse.setData(photoresponse);
 						errResponse.setPlatform("facebook");
 						mainresponse.add(errResponse);
 					}
@@ -307,8 +321,15 @@ public class FacebookPostService {
 					return mediaFile.getOriginalFilename(); // Return the original file name
 				}
 			};
+			ContentDisposition contentDisposition = ContentDisposition.builder("form-data").name("file")
+					.filename(mediaFile.getOriginalFilename()).build();
+
+			HttpHeaders fileHeaders = new HttpHeaders();
+			fileHeaders.setContentDisposition(contentDisposition);
+			fileHeaders.setContentType(MediaType.parseMediaType(mediaFile.getContentType()));
+			HttpEntity<ByteArrayResource> fileEntity = new HttpEntity<>(mediaResource, fileHeaders);
 			MultiValueMap<String, Object> body = config.getMultiValueMap();
-			body.add("file", mediaResource);
+			body.add("file", fileEntity);
 			if (mediaFile.isEmpty()) {
 				throw new IllegalArgumentException("File is empty.");
 			}

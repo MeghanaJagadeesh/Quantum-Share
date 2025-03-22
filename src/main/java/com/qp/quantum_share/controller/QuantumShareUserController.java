@@ -128,7 +128,7 @@ public class QuantumShareUserController {
 	}
 
 	@PostMapping("/account-overview")
-	public ResponseEntity<ResponseStructure<String>> accountOverView(@RequestParam(required = false) MultipartFile file,
+	public ResponseEntity<ResponseStructure<String>> accountOverView(@RequestParam(required = false) MultipartFile[] file,
 			@RequestParam(required = false) String firstname, @RequestParam(required = false) String lastname,
 			@RequestParam(required = false) String email, @RequestParam(required = false) Long phoneNo,
 			@RequestParam(required = false) String company) {

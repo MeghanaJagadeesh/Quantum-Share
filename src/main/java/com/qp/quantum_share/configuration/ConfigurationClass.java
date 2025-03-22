@@ -10,6 +10,7 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Scope;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -20,7 +21,9 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.qp.quantum_share.dto.FacebookPageDetails;
 import com.qp.quantum_share.dto.PaymentDetails;
 import com.qp.quantum_share.dto.SocialMediaPosts;
@@ -31,7 +34,6 @@ import com.qp.quantum_share.response.SuccessResponse;
 import com.restfb.DefaultFacebookClient;
 import com.restfb.FacebookClient;
 import com.restfb.Version;
-import org.springframework.core.io.ByteArrayResource;
 
 @Component
 public class ConfigurationClass {
@@ -42,8 +44,6 @@ public class ConfigurationClass {
 			@Override
 			public void addCorsMappings(CorsRegistry reg) {
 				reg.addMapping("/**").allowedOrigins("*").allowedMethods("*");
-//						.allowedOrigins("http://localhost:3000/", "https://quantumshare.quantumparadigm.in/")
-
 			}
 		};
 	}
@@ -66,6 +66,14 @@ public class ConfigurationClass {
 		return new HttpEntity<>(multiValueMap, headers);
 	}
 
+	@Bean
+	public ObjectMapper getMapper() {
+		 ObjectMapper objectMapper = new ObjectMapper();
+	        objectMapper.registerModule(new JavaTimeModule());
+	        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+	        return objectMapper;
+	}
+	
 	@Bean
 	@Lazy
 	public HttpEntity<String> getHttpEntity(HttpHeaders headers) {
@@ -101,11 +109,6 @@ public class ConfigurationClass {
 	@Lazy
 	public FacebookClient getFacebookClient(String accessToken) {
 		return new DefaultFacebookClient(accessToken, Version.LATEST);
-	}
-
-	@Bean
-	public ObjectMetadata getMetaObject() {
-		return new ObjectMetadata();
 	}
 
 	@Bean

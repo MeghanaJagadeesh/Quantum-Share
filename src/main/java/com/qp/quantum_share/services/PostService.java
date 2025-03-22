@@ -117,7 +117,7 @@ public class PostService {
 		return null;
 	}
 
-	public ResponseEntity<ResponseWrapper> postOnInsta(MediaPost mediaPost, MultipartFile mediaFile,
+	public ResponseEntity<ResponseWrapper> postOnInsta(MediaPost mediaPost, MultipartFile[] mediaFile,
 			QuantumShareUser user, int userId) {
 		SocialAccounts socialAccounts = user.getSocialAccounts();
 		if (mediaPost.getMediaPlatform().contains("instagram")) {
@@ -398,8 +398,9 @@ public class PostService {
 		}
 	}
 
-	public ResponseEntity<ResponseStructure<JsonNode>> PostOnReddit(String subreddit, SocialAccounts socialAccounts, MediaPost mediaPost, MultipartFile mediafile, QuantumShareUser user) {
+	public ResponseEntity<ResponseStructure<JsonNode>> PostOnReddit(String subreddit, SocialAccounts socialAccounts, MediaPost mediaPost, MultipartFile[] file, QuantumShareUser user) {
 		ResponseStructure<JsonNode> responseStructure = new ResponseStructure<>();
+		MultipartFile mediafile=file[0];
 		if(mediafile.isEmpty()||mediafile==null) {
 			responseStructure.setMessage("Invalid file type");
 			responseStructure.setCode(HttpStatus.NOT_ACCEPTABLE.value());
@@ -445,7 +446,7 @@ public class PostService {
 				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseStructure);
 			}
 			System.out.println("post service");
-			responseStructure = redditService.PostOnReddit(subreddit, title, user,mediafile, redditUser);
+			responseStructure = redditService.PostOnReddit(subreddit, title, user,file, redditUser);
 			return ResponseEntity.status(responseStructure.getCode()).body(responseStructure);
 		} else {
 			responseStructure.setMessage("Please connect your Reddit account");

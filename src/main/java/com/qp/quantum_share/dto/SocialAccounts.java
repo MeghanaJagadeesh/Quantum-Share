@@ -1,5 +1,7 @@
 package com.qp.quantum_share.dto;
 
+import java.util.List;
+
 import org.springframework.stereotype.Component;
 
 import jakarta.persistence.CascadeType;
@@ -38,9 +40,13 @@ public class SocialAccounts {
 	@OneToOne(cascade = CascadeType.ALL)
 	private LinkedInProfileDto linkedInProfileDto;
 
+//    @OneToOne(cascade = CascadeType.ALL)
+//    private List<LinkedInPageDto> linkedInPages;
+
     @OneToOne(cascade = CascadeType.ALL)
     private LinkedInPageDto linkedInPages;
-	
+
+    
 	@OneToOne(cascade = CascadeType.ALL)
 	private YoutubeUser youtubeUser;
 	

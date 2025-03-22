@@ -2,6 +2,10 @@ package com.qp.quantum_share.dto;
 
 import java.time.Instant;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.datatype.jsr310.ser.InstantSerializer;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -22,6 +26,9 @@ public class SocialMediaPosts {
 	private String profileId;
 	private String profileName;
 	private String platformName;
+	
+	@JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'", timezone = "UTC")
+	@JsonSerialize(using = InstantSerializer.class)
 	private Instant postDate;
 	private String postTime;
 	private String mediaType;
