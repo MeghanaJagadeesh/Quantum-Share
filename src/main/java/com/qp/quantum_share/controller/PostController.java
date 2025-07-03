@@ -35,12 +35,6 @@ import twitter4j.TwitterException;
 @RequestMapping("/quantum-share")
 public class PostController {
 
-//	@Value("${quantumshare.admin.firstname}")
-//	private String firstname;
-//
-//	@Value("${quantumshare.admin.email}")
-//	private String email;
-
 	@Autowired
 	ResponseStructure<String> structure;
 

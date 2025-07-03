@@ -15,8 +15,6 @@ import com.qp.quantum_share.dto.QuantumShareUser;
 import com.qp.quantum_share.dto.Staff;
 
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.io.Encoders;
 import io.jsonwebtoken.security.Keys;
 
 @Component
@@ -49,37 +47,39 @@ public class JwtToken {
 //        String base64Key = Encoders.BASE64.encode(key.getEncoded()); 
 //		return Jwts.builder().setClaims(claims).setExpiration(expirationDate)
 //				.signWith(key).compact();
-		return password.encrypt(user.getUserId()+"", "123");
+		return SecurePassword.encrypt(user.getUserId()+"", "123");
 		
 	}
 	
 		public String generateJWT(Staff staff) {
-		        Map<String, Object> claims = new HashMap<>();
-		        claims.put("staffId", staff.getStaffId()); 
-		        claims.put("email", staff.getEmail());
-		        claims.put("role", "staff");
-		        
-		        Calendar calendar = Calendar.getInstance();
-		        calendar.add(Calendar.DAY_OF_YEAR, 15); 
-		        Date expirationDate = calendar.getTime();
-		        
-		        SecretKey key = Keys.hmacShaKeyFor(secretKey.getBytes());
-				return Jwts.builder().setClaims(claims).setExpiration(expirationDate)
-						.signWith(key).compact();
+//		        Map<String, Object> claims = new HashMap<>();
+//		        claims.put("staffId", staff.getStaffId()); 
+//		        claims.put("email", staff.getEmail());
+//		        claims.put("role", "staff");
+//		        
+//		        Calendar calendar = Calendar.getInstance();
+//		        calendar.add(Calendar.DAY_OF_YEAR, 15); 
+//		        Date expirationDate = calendar.getTime();
+//		        
+//		        SecretKey key = Keys.hmacShaKeyFor(secretKey.getBytes());
+//				return Jwts.builder().setClaims(claims).setExpiration(expirationDate)
+//						.signWith(key).compact();
+			return SecurePassword.encrypt(staff.getStaffId()+"", "123");
 		    }
 		  
 		public String generateJWTForAdmin() {
-			    Map<String, Object> claims = new HashMap<>();
-			    claims.put("email", adminEmail); 
-
-			    Calendar calendar = Calendar.getInstance();
-			    calendar.add(Calendar.DAY_OF_YEAR, 15); 
-			    Date expirationDate = calendar.getTime();
-
-			    
-			    SecretKey key = Keys.hmacShaKeyFor(secretKey.getBytes());
-			    
-				return Jwts.builder().setClaims(claims).setExpiration(expirationDate)
-						.signWith(key).compact();
+//			    Map<String, Object> claims = new HashMap<>();
+//			    claims.put("email", adminEmail);
+//
+//			    Calendar calendar = Calendar.getInstance();
+//			    calendar.add(Calendar.DAY_OF_YEAR, 15);
+//			    Date expirationDate = calendar.getTime();
+//
+//
+//			    SecretKey key = Keys.hmacShaKeyFor(secretKey.getBytes());
+//
+//				return Jwts.builder().setClaims(claims).setExpiration(expirationDate)
+//						.signWith(key).compact();
+			return SecurePassword.encrypt(adminEmail, "123");
 			}
 }

@@ -1,10 +1,7 @@
 package com.qp.quantum_share.services;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -79,7 +76,7 @@ public class RedditService {
 
 	public String getAuthorizationUrl() {
 		return "https://www.reddit.com/api/v1/authorize?client_id=" + clientId
-				+ "&response_type=code&state=string&redirect_uri=" + redirectUri + "&duration=permanent&scope=" + scope;
+				+ "&response_type=code&state="+ UUID.randomUUID() +"&redirect_uri=" + redirectUri + "&duration=permanent&scope=" + scope;
 	}
 
 	// REDDIT FETCHING ACCESSTOKEN

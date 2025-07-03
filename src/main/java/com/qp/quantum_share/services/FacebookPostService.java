@@ -383,4 +383,9 @@ public class FacebookPostService {
 			throw new IllegalArgumentException("Unsupported file type: " + file.getContentType());
 		}
 	}
+	
+//	public void postCarouselToFb(MultipartFile[] files, QuantumShareUser user) {
+//		List<FacebookPageDetails> pages = user.getSocialAccounts().getFacebookUser().getPageDetails();
+//		
+//	}
 }

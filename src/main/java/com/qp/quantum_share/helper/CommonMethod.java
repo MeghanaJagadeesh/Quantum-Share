@@ -43,7 +43,8 @@ public class CommonMethod {
 			return new ResponseEntity<ResponseStructure<String>>(structure, HttpStatus.UNAUTHORIZED);
 		}
 		String jwtToken = token.substring(7);
-		Object mail = jwtUtilConfig.extractAllClaims(jwtToken).get("email");
+		Object mail = jwtUtilConfig.extractEmail(jwtToken);
+		System.out.println("mail"+ mail);
 		return mail;
 	}
 	

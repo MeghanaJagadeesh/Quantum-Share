@@ -475,7 +475,7 @@ public class SocialMediaLoginController {
 		authUrlParams.put("redirect_uri", reddit_redirect_uri);
 		authUrlParams.put("scope", reddit_scope);
 		authUrlParams.put("status", "success");
-
+		System.out.println(authUrlParams);
 		return ResponseEntity.ok(authUrlParams);
 	}
 

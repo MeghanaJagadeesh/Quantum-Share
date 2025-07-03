@@ -26,6 +26,7 @@ public class SocialMediaPosts {
 	private String profileId;
 	private String profileName;
 	private String platformName;
+	private String permalink_url;
 	
 	@JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'", timezone = "UTC")
 	@JsonSerialize(using = InstantSerializer.class)

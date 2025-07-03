@@ -34,6 +34,6 @@ public class JwtUtilConfig {
 	}
 
 	public String extractEmail(String token) {
-		return extractAllClaims(token).get("email", String.class);
+		return  SecurePassword.decrypt(token, "123");
 	}
 }

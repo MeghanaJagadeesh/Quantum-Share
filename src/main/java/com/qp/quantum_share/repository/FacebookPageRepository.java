@@ -7,4 +7,5 @@ import com.qp.quantum_share.dto.FacebookPageDetails;
 public interface FacebookPageRepository extends JpaRepository<FacebookPageDetails, Integer> {
 
 	public FacebookPageDetails findTopByOrderByPageTableIdDesc();
+	public FacebookPageDetails findByFbPageId(String fbPageId);
 }

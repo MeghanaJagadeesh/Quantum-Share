@@ -1,48 +1,86 @@
 package com.qp.quantum_share.services;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
-
-import org.springframework.http.*;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.List;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.qp.quantum_share.dto.FaceBookUser;
+import com.qp.quantum_share.dto.FacebookPageDetails;
+import com.qp.quantum_share.dto.QuantumShareUser;
+import com.qp.quantum_share.repository.FacebookPageRepository;
 
 @Service
 public class TestService {
 
-	// Replace with your actual WhatsApp Number ID
-	private static final String WHATSAPP_NUMBER_ID = "463018520236115";
+	@Autowired
+	RestTemplate restTemplate;
 
-	// Update API URL with the number ID
-	private static final String API_URL = "https://graph.facebook.com/v21.0/" + WHATSAPP_NUMBER_ID + "/messages";
+	@Autowired
+	FacebookPageRepository facebookPageRepository;
 
-	private static final String ACCESS_TOKEN = "EAAPPo51qkGcBO3AqnZAQwi9aJv0GlqAacP42Pea9geTOcZApKAFpzXVZCl5JnTMpZAWrBnb3BTyjpgsRTZBmoqwPQcDXcDCIHPHMDPBrzQxkTBbNqQoxQwFZA8O0RLsoX9OrHfZAwZCqNoCaeJUMZBV35xbZCy5lTpX4tOYapejrI0zQa5bdZAJROnqcoZBxqgDAxiLrAtR5jPErkoXZCIV2xiZCUZD";
+	public void fetchAnalytics(QuantumShareUser user) {
+		FaceBookUser facebook = user.getSocialAccounts().getFacebookUser();
+		if (facebook == null) {
 
-	public void sendBulkMessages(List<String> phoneNumbers) {
-		RestTemplate restTemplate = new RestTemplate();
+		}
+		List<FacebookPageDetails> pages = facebook.getPageDetails();
+		Map<String, JsonNode> responses = new HashMap<String, JsonNode>();
 
-		for (String phone : phoneNumbers) {
-			try {
-				HttpHeaders headers = new HttpHeaders();
-				headers.setContentType(MediaType.APPLICATION_JSON);
-				headers.setBearerAuth(ACCESS_TOKEN);
-
-				String requestBody = createMessageBody(phone);
-				HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
-
-				ResponseEntity<String> response = restTemplate.postForEntity(API_URL, request, String.class);
-
-				
-			} catch (Exception e) {
-				System.err.println("Error sending message to: " + phone + " - " + e.getMessage());
+		for (FacebookPageDetails page : pages) {
+			String url = "https://graph.facebook.com/v22.0/me/feed?limit=50";
+			HttpHeaders headers = new HttpHeaders();
+			headers.setBearerAuth(page.getFbPageAceessToken());
+			HttpEntity<String> requestEntity = new HttpEntity<String>(headers);
+			ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.GET, requestEntity,
+					JsonNode.class);
+			if (response.getStatusCode().is2xxSuccessful()) {
+				responses.put(page.getFbPageId(), response.getBody());
 			}
 		}
+		for (Object entry : responses.entrySet()) {
+			System.out.println(entry);
+		}
+		getDetailsOfPost(facebook, user, responses);
 	}
 
-	private String createMessageBody(String phoneNumber) {
-		return "{\n" + "  \"messaging_product\": \"whatsapp\",\n" + "  \"to\": \"" + phoneNumber + "\",\n"
-				+ "  \"type\": \"template\",\n" + "  \"template\": {\n" + "    \"name\": \"new_year_wish\",\n"
-				+ "    \"language\": { \"code\": \"en_US\" }\n" + "  }\n" + "}";
+	private void getDetailsOfPost(FaceBookUser facebook, QuantumShareUser user, Map<String, JsonNode> responses) {
+		List<FacebookPageDetails> pages = facebook.getPageDetails();
+		for (Entry<String, JsonNode> entry : responses.entrySet()) {
+			FacebookPageDetails page = facebookPageRepository.findByFbPageId(entry.getKey());
+			System.out.println(page);
+			JsonNode posts = entry.getValue();
+			 JSONObject jsonObject = new JSONObject(posts);
+			JSONArray dataArray = jsonObject.getJSONArray("data");
+	        List<String> ids = new ArrayList<>();
+
+	        for (int i = 0; i < dataArray.length(); i++) {
+	            JSONObject post = dataArray.getJSONObject(i);
+	            if (post.has("id")) {
+	                ids.add(post.getString("id"));
+	                String apiurl="https://graph.facebook.com/v22.0/"+post.getString("id")+"?fields=id,created_time,full_picture,message,permalink_url";
+	                HttpHeaders headers=new HttpHeaders();
+	                headers.setBearerAuth(page.getFbPageAceessToken());
+	                HttpEntity<String> requestEntity=new HttpEntity<String>(headers);
+	                ResponseEntity<JsonNode> response = restTemplate.exchange(apiurl, HttpMethod.GET, requestEntity,JsonNode.class);
+	                if(response.getStatusCode().is2xxSuccessful()) {
+	                	
+	                }
+	            }
+	        }
+			
+		}
 	}
 }

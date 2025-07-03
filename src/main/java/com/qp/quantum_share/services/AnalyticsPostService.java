@@ -646,6 +646,9 @@ public class AnalyticsPostService {
 			JsonNode likeData = objectMapper.readTree(likeResponse.getBody());
 			JsonNode commentData = objectMapper.readTree(commentResponse.getBody());
 			JsonNode reactions = likeData.get("data").get(0).get("values").get(0).get("value");
+			System.out.println("likes : "+likeData);
+			System.out.println("commentData : "+commentData);
+			System.out.println("reactions : "+reactions);
 			if (reactions.isEmpty()) {
 				responseData.put("reactions", 0);
 			} else {

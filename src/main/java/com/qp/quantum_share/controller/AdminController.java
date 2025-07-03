@@ -78,8 +78,10 @@ public class AdminController {
 	// Deleting the user by email
 	@DeleteMapping("/deleteUser")
 	public ResponseEntity<ResponseStructure<String>> deleteUser(@RequestParam String email) {
+		System.out.println("service");
 		ResponseStructure<String> structure = new ResponseStructure<String>();
 		Object mail = commonMethod.validateAdminToken(request.getHeader("Authorization"));
+		System.out.println(mail);
 		if (mail.equals(adminEmail)) {
 			return adminService.deleteUserByEmail(email);
 		} else {
